@@ -98,6 +98,7 @@ class SepDataset(Dataset):
         self.img_w = img_width
         self.net_type = net_type
         self.sigma = sigma
+        self.data_type = data_type
 
         img_folder = os.path.join(data_folder, "images")
         pos_folder = os.path.join(data_folder, "positions")
@@ -126,25 +127,32 @@ class SepDataset(Dataset):
         return len(self.images)
 
     def __getitem__(self, index):
-        img = cv2.resize(cv2.imread(self.images[index]), (self.img_w, self.img_h))
-        p = np.load(self.positions[index]) # pull, hold
-        p_no_hold = np.array([np.load(self.positions[index])[0]]) # pull
-        q = np.load(self.directions[index])
-        l = np.load(self.labels[index])
 
-        img = self.transform(img)
-        heatmap = gauss_2d_batch(self.img_h, self.img_w, self.sigma, p)
-        heatmap_no_hold = gauss_2d_batch(self.img_h, self.img_w, self.sigma, p_no_hold)
+        if self.data_type == 'train':
+            img = cv2.resize(cv2.imread(self.images[index]), (self.img_w, self.img_h))
+            p = np.load(self.positions[index]) # pull, hold
+            p_no_hold = np.array([np.load(self.positions[index])[0]]) # pull
+            q = np.load(self.directions[index])
+            l = np.load(self.labels[index])
 
-        all_img =  torch.cat((img, heatmap), 0)
+            img = self.transform(img)
+            heatmap = gauss_2d_batch(self.img_h, self.img_w, self.sigma, p)
+            heatmap_no_hold = gauss_2d_batch(self.img_h, self.img_w, self.sigma, p_no_hold)
+
+            all_img =  torch.cat((img, heatmap), 0)
+            
+            all_img_no_hold =  torch.cat((img, heatmap_no_hold), 0)
+            q = torch.from_numpy(q)
+            l = torch.from_numpy(l)[0]
+
+            if 'pos' in self.net_type: return img, heatmap
+            elif 'dir' in self.net_type: return all_img, q, l
+
+        elif self.data_type == 'test':
+            img = cv2.resize(cv2.imread(self.images[index]), (self.img_w, self.img_h))
+            img = self.transform(img)
+            return img
         
-        all_img_no_hold =  torch.cat((img, heatmap_no_hold), 0)
-        q = torch.from_numpy(q)
-        l = torch.from_numpy(l)[0]
-        if 'pos' in self.net_type:
-            return img, heatmap
-        elif 'dir' in self.net_type:
-            return all_img, q, l
             # return all_img_no_hold, q, l
 
 
