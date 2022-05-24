@@ -1,0 +1,8 @@
+setup.py
+tangle/__init__.py
+tangle/model.py
+tangle/model_parts.py
+tangle.egg-info/PKG-INFO
+tangle.egg-info/SOURCES.txt
+tangle.egg-info/dependency_links.txt
+tangle.egg-info/top_level.txt
