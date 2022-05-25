@@ -69,13 +69,18 @@ class Trainer(object):
         self.net_type = config.net_type
         self.epochs = config.epochs
         self.use_cuda = config.use_cuda
+        
         self.out_dir = config.save_folder
         self.timestamp_start = datetime.datetime.now()
+        
+        
 
         self.epoch = 0
         self.iteration = 0
 
         config.display()
+
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         (img_h, img_w) = config.input_size
         data_num = len(os.listdir(os.path.join(config.data_folder, 'images')))
@@ -120,8 +125,8 @@ class Trainer(object):
         self.test_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True, num_workers=config.num_workers)
         
         if self.use_cuda: 
-            torch.cuda.set_device('cuda:0')
-            self.model = self.model.cuda()
+            # self.model = self.model.cuda()
+            self.model.to(device)
 
         # output and log, if save_dir exists, exit
         if os.path.exists(self.out_dir): 
