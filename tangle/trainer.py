@@ -119,7 +119,9 @@ class Trainer(object):
         self.train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, num_workers=config.num_workers)
         self.test_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True, num_workers=config.num_workers)
         
-        if config.use_cuda: self.model = self.model.cuda()
+        if self.use_cuda: 
+            torch.cuda.set_device('cuda:0')
+            self.model = self.model.cuda()
 
         # output and log, if save_dir exists, exit
         if os.path.exists(self.out_dir): 
