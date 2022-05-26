@@ -1,3 +1,8 @@
+"""
+Model class
+Author: xinyi
+Date: 20220517
+"""
 import logging
 from tabnanny import check
 # logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
@@ -6,12 +11,6 @@ import torch.nn as nn
 import torchvision
 from tangle.model_parts import resnet34, resnet50, resnet101
 from tangle.model_parts import Bridge, UpBlock, MLP, Up, Down, Conv
-
-"""
-Model class
-Author: xinyi
-Date: 20220517
-"""
 
 class PickNet(nn.Module):
     """

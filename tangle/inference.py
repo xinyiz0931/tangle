@@ -1,20 +1,14 @@
 import os
-from random import sample
-import sys
-import logging
 import timeit
-# logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
-import tqdm
 from tangle.utils import *
 from tangle import PickNet, SepPositionNet, SepDirectionNet
 from tangle import PickDataset, SepDataset
-from tangle import InferConfig
 
 
 class Inference(object):
@@ -27,20 +21,11 @@ class Inference(object):
         self.infer_type = config.infer_type
         config.display()
 
-        (img_h, img_w) = config.input_size
-        self.img_h = img_h
-        self.img_w = img_w
+        self.img_h = config.img_height
+        self.img_w = config.img_width
         self.batch_size = config.batch_size
         self.transform = transforms.Compose([transforms.ToTensor()])
         self.data_list = []
-
-        """
-        self.pick_or_sep = [0,0]
-        self.pick_p = [[100,100], [200,200]]
-        self.hold_p = [[101,101], [102,102]]
-        self.pull_p = [[120,120], [140,140]]
-        self.pull_v = [90, 45]
-        """
 
         # check modelds' existence [pick, sep_pos, sep_dir]
         models = [False,False,False]
@@ -66,37 +51,37 @@ class Inference(object):
         if models[0] is True: 
             if self.use_cuda:
                 self.picknet = self.picknet.cuda()
-                self.picknet.load_state_dict(torch.load(self.config.pick_ckpt))
+                self.picknet.load_state_dict(torch.load(config.pick_ckpt))
             else:
-                self.picknet.load_state_dict(torch.load(self.config.pick_ckpt,map_location=torch.device("cpu")))  
+                self.picknet.load_state_dict(torch.load(config.pick_ckpt,map_location=torch.device("cpu")))  
         if models[1] is True:
             if self.use_cuda: 
                 self.sepposnet = self.sepposnet.cuda()
-                self.sepposnet.load_state_dict(torch.load(self.config.sep_pos_ckpt))
+                self.sepposnet.load_state_dict(torch.load(config.sep_pos_ckpt))
             else:
-                self.sepposnet.load_state_dict(torch.load(self.config.sep_pos_ckpt,map_location=torch.device("cpu")))
+                self.sepposnet.load_state_dict(torch.load(config.sep_pos_ckpt,map_location=torch.device("cpu")))
         if models[2] is True:
             if self.use_cuda: 
                 self.sepdirnet = self.sepdirnet.cuda()
-                self.sepdirnet.load_state_dict(torch.load(self.config.sep_dir_ckpt))
+                self.sepdirnet.load_state_dict(torch.load(config.sep_dir_ckpt))
             else:
-                self.sepdirnet.load_state_dict(torch.load(self.config.sep_dir_ckpt,map_location=torch.device("cpu")))
+                self.sepdirnet.load_state_dict(torch.load(config.sep_dir_ckpt,map_location=torch.device("cpu")))
             
         # if validation mode, it's necessary to load the dataset
         if self.mode == 'val':
             inds = random_inds(10,len(os.listdir(os.path.join(config.dataset_dir, "images"))))
             if 'pick' in self.infer_type:
-                self.val_dataset = PickDataset(img_h, img_w, config.dataset_dir, data_inds=inds) 
+                self.val_dataset = PickDataset(self.img_h, self.img_w, config.dataset_dir, data_inds=inds) 
             elif 'sep' in self.infer_type:
-                self.val_dataset = SepDataset(img_h, img_w, config.dataset_dir, self.infer_type, data_inds=inds)
+                self.val_dataset = SepDataset(self.img_h, self.img_w, config.dataset_dir, config.infer_type, data_inds=inds)
             self.val_loader = DataLoader(self.val_dataset, batch_size=config.batch_size, shuffle=False)
         
         elif self.mode == 'test':
             self.dataset_dir = config.dataset_dir
             if 'pick' in self.infer_type:
-                self.test_dataset = PickDataset(img_h, img_w, config.dataset_dir, data_type='test')
+                self.test_dataset = PickDataset(self.img_h, self.img_w, config.dataset_dir, data_type='test')
             elif 'sep' in self.infer_type:
-                self.test_dataset = SepDataset(img_h, img_w, config.dataset_dir, self.infer_type, data_type='test')
+                self.test_dataset = SepDataset(self.img_h, self.img_w, config.dataset_dir, self.infer_type, data_type='test')
             self.test_loader = DataLoader(self.test_dataset, batch_size=config.batch_size, shuffle=False)
 
     def get_grasps_for_sepnet(self, img):
@@ -443,18 +428,18 @@ class Inference(object):
                     print(d, "==> pick! ")
                     self.plot(d, o, cmap=False, plot_type='pick')
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
 
-    config = InferConfig()
-    inference = Inference(config=config)
+#     config = InferConfig()
+#     inference = Inference(config=config)
 
-    # a = "C:\\Users\\xinyi\\Desktop\\tt.png"
-    a = "C:\\Users\\matsumura\\Desktop\\image.png"
+#     # a = "C:\\Users\\xinyi\\Desktop\\tt.png"
+#     a = "C:\\Users\\matsumura\\Desktop\\image.png"
 
-    root_dir = "C:\\Users\\xinyi\\Documents\\Checkpoints\\try_SR\\model_epoch_"
-    model_path = "C:\\Users\\xinyi\\Documents\\Checkpoints\\try_SR\\model_epoch_99.pth"
-    # inference.infer_pick(a)
-    inference.infer()
-    # inference.infer_sep_dir(a)
+#     root_dir = "C:\\Users\\xinyi\\Documents\\Checkpoints\\try_SR\\model_epoch_"
+#     model_path = "C:\\Users\\xinyi\\Documents\\Checkpoints\\try_SR\\model_epoch_99.pth"
+#     # inference.infer_pick(a)
+#     inference.infer()
+#     # inference.infer_sep_dir(a)
 
-    # inference.infer_sep_pos()
+#     # inference.infer_sep_pos()

@@ -2,12 +2,20 @@ import os
 import json
 import numpy as np
 import cv2
-import tqdm
+from PIL import Image
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
+from torchvision.io import read_image
 from yaml import load
 from tangle.utils import *
+
+# transform = transforms.Compose(
+#     [transforms.ToTensor(),
+#      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+transform = transforms.Compose(
+    [
+     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
 """
 Dataset class
@@ -30,7 +38,6 @@ class PickDataset(Dataset):
         img_folder = os.path.join(data_folder, "images")
         msk_folder = os.path.join(data_folder, "masks")
         lbl_folder = os.path.join(data_folder, "labels")
-        
 
         self.transform = transforms.Compose([transforms.ToTensor()])
         
@@ -41,13 +48,15 @@ class PickDataset(Dataset):
             if data_inds == None:
                 num_inds = len(os.listdir(img_folder))
                 data_inds = random_inds(num_inds, num_inds)
-            for i in tqdm.tqdm(data_inds, f"Processing dataset (train)", ncols=75):
+
+            for i in data_inds: 
                 self.images.append(os.path.join(img_folder, "%06d.png"%i))
                 self.masks.append(os.path.join(msk_folder, "%06d.png"%i))
                 self.labels.append(np.load(os.path.join(lbl_folder, "%06d.npy"%i))[0])
         
         elif data_type == 'test':
-            for f in tqdm.tqdm(os.listdir(data_folder), f"Processing dataset (test)", ncols=75):
+
+            for f in os.listdir(data_folder):
                 if f.split('.')[-1] == 'png': self.images.append(os.path.join(data_folder, f))
 
     def __len__(self):
@@ -55,11 +64,11 @@ class PickDataset(Dataset):
 
     def __getitem__(self, index):
 
-        if self.data_type == 'train':
-
+        if self.data_type == 'train':            
+                        
             src_img = cv2.imread(self.images[index])
             src_msk = cv2.imread(self.masks[index],0)
-            # check the size
+            # # check the size
             src_h, src_w = src_msk.shape
             if src_h != self.img_h or src_w != self.img_h:
                 src_img = cv2.resize(src_img, (self.img_w, self.img_h))
@@ -81,7 +90,6 @@ class PickDataset(Dataset):
             if src_h != self.img_h or src_w != self.img_h:
                 src_img = cv2.resize(src_img, (self.img_w, self.img_h))
             return self.transform(src_img)
-
 
 class SepDataset(Dataset):
     """
@@ -113,14 +121,15 @@ class SepDataset(Dataset):
             if data_inds == None:
                 num_inds = len(os.listdir(img_folder))
                 data_inds = random_inds(num_inds, num_inds)
-            for i in tqdm.tqdm(data_inds, "Processing dataset (train)", ncols=75):
+            for i in data_inds:    
                 self.images.append(os.path.join(img_folder, "%06d.png"%i))
                 self.positions.append(os.path.join(pos_folder, "%06d.npy"%i))
                 self.directions.append(os.path.join(dir_folder, "%06d.npy"%i))
                 self.labels.append(os.path.join(lbl_folder, "%06d.npy"%i))
         
         elif data_type == 'test':
-            for f in tqdm.tqdm(os.listdir(data_folder), f"Processing dataset (test)", ncols=75):
+            
+            for f in os.listdir(data_folder):
                 if f.split('.')[-1] == 'png': self.images.append(os.path.join(data_folder, f))
 
     def __len__(self):
@@ -129,6 +138,7 @@ class SepDataset(Dataset):
     def __getitem__(self, index):
 
         if self.data_type == 'train':
+
             img = cv2.resize(cv2.imread(self.images[index]), (self.img_w, self.img_h))
             p = np.load(self.positions[index]) # pull, hold
             p_no_hold = np.array([np.load(self.positions[index])[0]]) # pull
