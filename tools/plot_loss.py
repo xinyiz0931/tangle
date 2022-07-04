@@ -1,21 +1,27 @@
 import argparse
+from email import parser
 import os
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+from yaml import parse
 
 sns.set()
 
+
 if __name__ == "__main__":
+    
     # read log file
     root_dir = "C:\\Users\\xinyi\\Documents"
-    # ckpt_path = os.path.join(root_dir, "Checkpoints", "try_SR_")
-    # ckpt_path = os.path.join(root_dir, "Checkpoints", "try0")
-    ckpt_path = os.path.join(root_dir, "Checkpoints", "try_38")
-    # acc_path = os.path.join(ckpt_path, "acc.csv")
-    log_path = os.path.join(ckpt_path, "log.csv")
+    root_dir = "D:\\"
+    ckpt_path = os.path.join(root_dir, "Checkpoint", "try_new_res")
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dir', '-d', default=ckpt_path, help='path to checkchpoint')
+    args = parser.parse_args()
+    
+    log_path = os.path.join(args.dir, 'log.csv')
 
     # create plot design
     colors = [[ 78.0/255.0,121.0/255.0,167.0/255.0], # 0_blue
@@ -47,7 +53,7 @@ if __name__ == "__main__":
     df = pd.read_csv(log_path)
     # df.insert(0, "epoch", list(range(100)), True)
     # print(df)
-    # df = df_all[df_all['epoch'] <= 12]
+    df = df[df['epoch'] <= 59]
 
     sns.lineplot(x="epoch", y="train_loss", data=df, label="Train Loss", color=colors[0], linewidth=2)
     sns.lineplot(x="epoch", y="test_loss", data=df,  label="Test Loss", color=colors[2], linewidth=2)
@@ -59,8 +65,8 @@ if __name__ == "__main__":
     frame.set_facecolor('white')
     
     plt.tight_layout()
+    plt.savefig(os.path.join(args.dir, 'loss.png'))
     plt.show()
-
     # create figure
     # ax = plt.axes()
     # ax.set_facecolor("white")
@@ -97,6 +103,6 @@ if __name__ == "__main__":
     # plt.ylabel('Val Accuract')
     # legend =plt.legend(['Success','Not Optimal','Failure'],loc='lower center', fontsize=14)
     # legend =plt.legend(loc='lower right', fontsize=14)
-    frame = legend.get_frame()
-    frame.set_facecolor('white')
-    plt.show()
+    #frame = legend.get_frame()
+    #frame.set_facecolor('white')
+    #plt.show()

@@ -18,6 +18,9 @@ def main():
     elif args.mode == 'infer':
         cfg = Config(config_path=config_path, config_type='infer')
         inference = Inference(config=cfg)
+
+        print(cfg.sepp_ckpt, cfg.sepd_ckpt)
+
         inference.infer()
 
 if __name__ == '__main__':

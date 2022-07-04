@@ -199,6 +199,13 @@ def vector2direction(drag_v):
     else: rot_degree = -degree_x
     return rot_degree
 
+def angle2vector(r, point_to='right'):
+    if point_to == 'right':
+        v = rotate_point([1,0], r)
+    elif point_to == 'left':
+        v = rotate_point([-1, 0], r)
+    return np.array(v) / np.linalg.norm(np.array(v))
+
 def direction2vector(rot_degree):
     """
     input: rotate_degree - angle of image counterclockwise-rotation which has vector [1,0]
@@ -230,6 +237,7 @@ def draw_drag_vector(img, start_p, drag_v, arrow_len, arrow_thinkness=2, color=(
 def draw_vector(img, start_p, v, arrow_len=None, arrow_thickness=2, color=(0,255,255)):
     """
     drag_v: 2d normalizaed vector
+    color: (r,g,b)
     """
     h, w, _ = img.shape
     if arrow_len == None: arrow_len = int(h/10)
@@ -245,14 +253,14 @@ def draw_vector(img, start_p, v, arrow_len=None, arrow_thickness=2, color=(0,255
     drawn = cv2.arrowedLine(img, start_p,stop_p, color_bgr, arrow_thickness)
     return drawn
 
-def draw_vectors_bundle(img, start_p, scores=None, scores_thre=0.5):
+def draw_vectors_bundle(img, start_p, scores=None, scores_thre=0.4):
     if scores == None: 
         itvl = 16
         scores = list(range(itvl))
     else: 
         itvl = len(scores)
     # top_five = sorted(range(len(scores)), key=lambda i: scores[i])[-5:-1]
-    top_r_one = sorted(range(len(scores)), key=lambda i: scores[i])[-1]
+    top_r_index = sorted(range(len(scores)), key=lambda i: scores[i])[-1]
     for r, s in enumerate(scores):
         if s > scores_thre: # success
             draw_vector(img, start_p, direction2vector(r*360/itvl), arrow_thickness=1,color=(0,255,0))
@@ -260,10 +268,12 @@ def draw_vectors_bundle(img, start_p, scores=None, scores_thre=0.5):
         else: # failure
             draw_vector(img, start_p, direction2vector(r*360/itvl), arrow_thickness=1,color=(255,0,0))
             # print("fail: ",r*360/itvl, scores.index(s))
-    top_r = top_r_one*360/itvl
+    top_r = top_r_index*360/itvl
     top_v = direction2vector(top_r)
-    
-    # draw_vector(img, start_p, top_v, arrow_thickness=2,color=(0,255,0))
+    if scores[top_r_index] > scores_thre:
+        draw_vector(img, start_p, top_v, arrow_thickness=2,color=(0,255,0))
+    else:
+        draw_vector(img, start_p, top_v, arrow_thickness=2,color=(255,255,0))
     return img
     cv2.imshow("windows", img)
     cv2.waitKey(0)

@@ -22,7 +22,8 @@ class Trainer(object):
         self.epochs = config.epochs
         self.use_cuda = config.use_cuda
         
-        self.out_dir = config.save_folder
+        self.out_dir = config.save_dir
+        print(config.save_dir)
         self.timestamp_start = datetime.datetime.now()
 
         self.train_flag = True
@@ -32,7 +33,7 @@ class Trainer(object):
         config.display()
         img_h = config.img_height
         img_w = config.img_width
-        data_num = len(os.listdir(os.path.join(config.data_folder, 'images')))
+        data_num = len(os.listdir(os.path.join(config.data_dir, 'images')))
         train_inds, test_inds = split_random_inds(data_num, config.test_ratio)
 
         if self.net_type == 'pick':
@@ -40,8 +41,8 @@ class Trainer(object):
             self.criterion = torch.nn.MSELoss()
             self.optim = torch.optim.SGD(self.model.parameters(), lr=config.learning_rate,
                          momentum=config.momentum, weight_decay=config.weight_decay)
-            train_dataset = PickDataset(img_h, img_w, config.data_folder, train_inds)
-            test_dataset = PickDataset(img_h, img_w, config.data_folder, test_inds)
+            train_dataset = PickDataset(img_h, img_w, config.data_dir, train_inds)
+            test_dataset = PickDataset(img_h, img_w, config.data_dir, test_inds)
             
         elif self.net_type == 'sep_pos':
 
@@ -50,16 +51,18 @@ class Trainer(object):
             self.criterion = torch.nn.BCELoss()
             self.optim = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate, 
                          weight_decay=config.weight_decay)
-            train_dataset = SepDataset(img_h, img_w, config.data_folder, self.net_type, data_inds=train_inds)
-            test_dataset = SepDataset(img_h, img_w, config.data_folder, self.net_type, data_inds=test_inds)
+            train_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=train_inds)
+            test_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=test_inds)
 
         elif self.net_type == 'sep_dir':
-            self.model = SepDirectionNet(in_channels=5)
+            self.model = SepDirectionNet(in_channels=5, backbone='resnet')
             self.criterion = nn.CrossEntropyLoss()
-            self.optim = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate, 
+            #self.optim = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate, 
+                        #  weight_decay=config.weight_decay)
+            self.optim = torch.optim.SGD(self.model.parameters(), lr=config.learning_rate, 
                          weight_decay=config.weight_decay)
-            train_dataset = SepDataset(img_h, img_w, config.data_folder, self.net_type, data_inds=train_inds)
-            test_dataset = SepDataset(img_h, img_w, config.data_folder, self.net_type, data_inds=test_inds)
+            train_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=train_inds)
+            test_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=test_inds)
 
         else:
             print('No such model type! Select from pick/sep_pos/sep_dir ... ')
@@ -139,7 +142,7 @@ class Trainer(object):
                 log = map(str, log)
                 f.write(','.join(log) + '\n')
 
-        print(f'Epoch {self.epoch} ==> train loss : {train_loss/i_batch}')
+        print(f'Epoch {self.epoch+1} ==> train loss : {train_loss/i_batch}')
 
     def test_epoch(self):
 
@@ -148,7 +151,7 @@ class Trainer(object):
         for i_batch, sample_batched in enumerate(self.test_loader):
             loss = self.forward(sample_batched)
             test_loss += loss.item()
-        print(f'Epoch {self.epoch} ==> test loss : {test_loss/i_batch}')
+        print(f'Epoch {self.epoch+1} ==> test loss : {test_loss/i_batch}')
             
 
         with open(os.path.join(self.out_dir, 'log.csv'), 'a') as f:

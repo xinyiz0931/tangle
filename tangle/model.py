@@ -3,13 +3,11 @@ Model class
 Author: xinyi
 Date: 20220517
 """
-import logging
-from tabnanny import check
-# logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+import os
 import torch
 import torch.nn as nn
 import torchvision
-from tangle.model_parts import resnet34, resnet50, resnet101
+from tangle.model_parts import resnet50, resnet101,resnet152
 from tangle.model_parts import Bridge, UpBlock, MLP, Up, Down, Conv
 
 class PickNet(nn.Module):
@@ -124,6 +122,7 @@ class SepDirectionNet(nn.Module):
         output_dim = 1
         self.backbone = backbone
         self.action_encoder = MLP(2, action_feature_dim, [action_feature_dim, action_feature_dim])
+        self.decoder = MLP(image_feature_dim + action_feature_dim, 2 * output_dim, [1024, 1024, 1024]) # 2 classes
         
         if backbone == 'conv':
             self.image_encoder_1 = Conv(in_channels, 32)
@@ -134,15 +133,14 @@ class SepDirectionNet(nn.Module):
             self.image_encoder_6 = Down(512, 512)
             self.image_encoder_7 = Down(512, 512)
             self.image_feature_extractor = MLP(512*8*8, image_feature_dim, [image_feature_dim])
-            self.decoder = MLP(image_feature_dim + action_feature_dim, 2 * output_dim, [1024, 1024, 1024]) # 2 classes
         if backbone =='resnet':
-            self.resnet = resnet50(pretrained=True)
+            self.resnet = resnet101(pretrained=True)
             self.resnet.conv1 = nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3,bias=False)
             modules = list(self.resnet.children())[:-1]      # delete the last fc layer.
             # modules.append(nn.Dropout(0.5))
             self.resnet = nn.Sequential(*modules)
-            self.resnet_feature_extractor = MLP(2048, image_feature_dim, [image_feature_dim])
-		# self.linear = nn.Linear(2048, out_features=1)
+            self.image_feature_extractor = MLP(2048*2*2, image_feature_dim, [image_feature_dim])
+            # self.linear = nn.Linear(2048, out_features=1)
     
     def forward(self, observation, directions):
         """
@@ -150,36 +148,36 @@ class SepDirectionNet(nn.Module):
         Output: torch.Size([1, 2])
         """
         x0 = observation
-        # print("================= image ==================")
+        # # print("================= image ==================")
         if self.backbone == 'conv':
             x1 = self.image_encoder_1(x0)
-            logging.debug(f"x0 -> x1: {x0.shape} -> {x1.shape}")
+            # print(f"x0 -> x1: {x0.shape} -> {x1.shape}")
             x2 = self.image_encoder_2(x1)
-            logging.debug(f"x1 -> x2: {x1.shape} -> {x2.shape}")
+            # print(f"x1 -> x2: {x1.shape} -> {x2.shape}")
             x3 = self.image_encoder_3(x2)
-            logging.debug(f"x2 -> x3: {x2.shape} -> {x3.shape}")
+            # print(f"x2 -> x3: {x2.shape} -> {x3.shape}")
             x4 = self.image_encoder_4(x3)
-            logging.debug(f"x3 -> x4: {x3.shape} -> {x4.shape}")
+            # print(f"x3 -> x4: {x3.shape} -> {x4.shape}")
             x5 = self.image_encoder_5(x4)
-            logging.debug(f"x4 -> x5: {x4.shape} -> {x5.shape}")
+            # print(f"x4 -> x5: {x4.shape} -> {x5.shape}")
             x6 = self.image_encoder_6(x5)
-            logging.debug(f"x5 -> x6: {x5.shape} -> {x6.shape}")
+            # print(f"x5 -> x6: {x5.shape} -> {x6.shape}")
             x7 = self.image_encoder_7(x6)
-            logging.debug(f"x6 -> x7: {x6.shape} -> {x7.shape}")
+            # print(f"x6 -> x7: {x6.shape} -> {x7.shape}")
             embedding = x7.reshape([x7.size(0), -1])
-            logging.debug(f"x7 -> image encoder output: {x7.shape} -> {embedding.shape}")
+            # print(f"x7 -> image encoder output: {x7.shape} -> {embedding.shape}")
             feature = self.image_feature_extractor(embedding)
-            logging.debug(f"image decoder input -> output: {embedding.shape} -> {feature.shape}")
+            # print(f"image decoder input -> output: {embedding.shape} -> {feature.shape}")
         
         if self.backbone == 'resnet':
             x1 = self.resnet(x0)
-            logging.debug(f"x0 -> x1: {x0.shape} -> {x1.shape}")
-            embedding = x1.reshape([x1.size(0), -1])
-            logging.debug(f"x1 -> image encoder output: {x1.shape} -> {embedding.shape}")
-            feature = self.resnet_feature_extractor(embedding)
-            logging.debug(f"image decoder input -> output: {embedding.shape} -> {feature.shape}")
+            # print(f"x0 -> x1: {x0.shape} -> {x1.shape}")
+            embedding = x1
+            # print(f"x1 -> image encoder output: {x1.shape} -> {embedding.shape}")
+            feature = self.image_feature_extractor(embedding)
+            # print(f"image decoder input -> output: {embedding.shape} -> {feature.shape}")
             
-        # print("================= action ==================")
+        # # print("================= action ==================")
         direction_features = self.action_encoder(directions)
 
         output = None
@@ -189,11 +187,11 @@ class SepDirectionNet(nn.Module):
         return output
 
 if __name__ == '__main__':
-    import os
     # root_dir = "C:\\Users\\xinyi\\Documents"
     # model_ckpt = os.path.join(root_dir, "Checkpoints", "try_SR_", "model_epoch_7.pth")
     batch_size = 1
     inp_img3 = torch.rand((batch_size, 3, 512, 512))
+    inp_img4 = torch.rand((batch_size, 4, 512, 512))
     inp_img5 = torch.rand((batch_size, 5, 512, 512))
     inp_direction = torch.rand((batch_size,2))
 
@@ -203,18 +201,19 @@ if __name__ == '__main__':
     # model = torch.hub.load("pytorch/vision:v0.10.0", "fcn_resnet50", pretrained=False)
     # model.load_state_dict(torch.load(model_ckpt))
     # out = model.forward(inp_img3)
-    # print(f"PickNet: ", out.shape)
+    # # print(f"PickNet: ", out.shape)
 
     # 2.1 SepPositionNet
-    model = SepPositionNet(out_channels=2)
-    out = model.forward(inp_img3)
-    print(f"SepPositionNet: ", out.shape)
+    #model = SepPositionNet(out_channels=2)
+    #out = model.forward(inp_img3)
+    ## print(f"SepPositionNet: ", out.shape)
     
 
-    # # 2.2 SepDirectionnet
-    # model = SepDirectionNet(in_channels=5)
-    # out = model.forward(inp_img5, inp_direction)
+    # 2.2 SepDirectionnet
+    model = SepDirectionNet(in_channels=4, backbone='resnet')
+    out = model.forward(inp_img4, inp_direction)
+    print(inp_img4.shape, inp_direction.shape, out.shape)
     
-    # print(f"SepDirectionNet: ", out.shape)
+    # # print(f"SepDirectionNet: ", out.shape)
     # checkpoint = torch.load(model_ckpt)
     # model.load_state_dict(torch.load(model_ckpt))
