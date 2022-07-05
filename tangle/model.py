@@ -23,7 +23,7 @@ class PickNet(nn.Module):
         self.model_type = model_type
         self.out_channels = out_channels
         if model_type == 'unet': 
-            resnet = torchvision.models.resnet.resnet50(pretrained=True)
+            resnet = torchvision.models.resnet.resnet50(pretrained=False)
             down_blocks = []
             up_blocks = []
             self.input_block = nn.Sequential(*list(resnet.children()))[:3]
@@ -43,7 +43,7 @@ class PickNet(nn.Module):
             self.up_blocks = nn.ModuleList(up_blocks)
             self.out = nn.Conv2d(64, out_channels, kernel_size=1, stride=1)
         if model_type == 'fcn':
-            self.fcn = torch.hub.load("pytorch/vision:v0.10.0", "fcn_resnet50", pretrained=True)
+            self.fcn = torch.hub.load("pytorch/vision:v0.10.0", "fcn_resnet50", pretrained=False)
 
     def forward(self, x, with_output_feature_map=False):
         if self.model_type == 'unet': 
@@ -71,10 +71,12 @@ class PickNet(nn.Module):
                 return x, output_feature_map
             else:
                 return x
+
         if self.model_type == 'fcn':
-            x = self.fcn(x)['out']
-            x = x[:,:self.out_channels, :, :]
-            return x
+            return self.fcn(x)
+            # x = self.fcn(x)['out']
+            # x = x[:,:self.out_channels, :, :]
+            # return x
 
 class SepPositionNet(nn.Module):
     """

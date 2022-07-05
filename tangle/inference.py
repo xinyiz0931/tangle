@@ -31,7 +31,8 @@ class Inference(object):
         models = [False,False,False]
 
         if 'pick' in self.infer_type:
-            self.picknet = PickNet(model_type='unet', out_channels=2)
+            # self.picknet = PickNet(model_type='fcn', out_channels=2)
+            self.picknet = torch.hub.load("pytorch/vision:v0.10.0", "fcn_resnet50", pretrained=False)
             models[0] = True
 
         if 'sep' in self.infer_type:
@@ -137,7 +138,7 @@ class Inference(object):
                 img = cv2.resize(cv2.imread(d), (self.img_w, self.img_h))
                 img_t = self.transform(img)
                 img_t = torch.unsqueeze(img_t, 0).cuda() if self.use_cuda else torch.unsqueeze(img_t, 0)
-                h = self.picknet(img_t)[0]
+                h = self.picknet(img_t)['out'][0]
                 h = h.detach().cpu().numpy()
 
                 pick_y, pick_x = np.unravel_index(h[0].argmax(), h[0].shape)
@@ -276,7 +277,7 @@ class Inference(object):
         if plot_type == 'pick':
 
             scores, overlays = [], []
-            for h in predictions:
+            for h in predictions[0:2]:
                 pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
                 scores.append(h.max())
                 vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
@@ -369,7 +370,7 @@ class Inference(object):
             cv2.destroyAllWindows()
         return showing
 
-    def infer(self, data_dir=None, save_dir=None, save=True, infer_type=None):
+    def infer(self, cmap=True, data_dir=None, save_dir=None, save=True, infer_type=None):
         self.data_list = [] # ininitialize 
         if infer_type is None: infer_type = self.infer_type
         
@@ -377,21 +378,21 @@ class Inference(object):
             pick_or_sep, pick_sep_p, outputs = self.infer_pick(data_dir=data_dir)
             if save: 
                 for d, o in zip(self.data_list, outputs):
-                    self.plot(d, o, save_dir=save_dir, plot_type=infer_type)
+                    self.plot(d, o, cmap=cmap, save_dir=save_dir, plot_type=infer_type)
             return [pick_or_sep, pick_sep_p]
 
         elif infer_type == 'sep_pos':
             pull_hold_p, outputs = self.infer_sep_pos(data_dir=data_dir)
             if save: 
                 for d, o in zip(self.data_list, outputs):
-                    self.plot(d, o, cmap=False, show=False, save_dir=save_dir, plot_type=infer_type)
+                    self.plot(d, o, cmap=cmap, show=False, save_dir=save_dir, plot_type=infer_type)
             return pull_hold_p
 
         elif infer_type == 'sep_dir':
             pull_hold_p, outputs = self.infer_sep_dir(data_dir=data_dir)
             if save: 
                 for d, o, p in zip(self.data_list, outputs, pull_hold_p):
-                    self.plot(d, o, grasps=p, save_dir=save_dir, plot_type=infer_type)
+                    self.plot(d, o, grasps=p, cmap=cmap, save_dir=save_dir, plot_type=infer_type)
             return pull_hold_p
 
         elif infer_type == 'sep':
@@ -400,7 +401,7 @@ class Inference(object):
             _, outputs_dir = self.infer_sep_dir(data_dir=data_dir, grasps=pull_hold_p)
             if save:            
                 for d, op, od, p in zip(self.data_list, outputs_pos, outputs_dir, pull_hold_p):
-                    self.plot(d, [op, od], grasps=p, save_dir=save_dir, plot_type=infer_type)
+                    self.plot(d, [op, od], grasps=p, cmap=cmap, save_dir=save_dir, plot_type=infer_type)
             return [pull_hold_p, outputs_dir]
         
         elif infer_type == 'pick_sep_pos':
@@ -409,10 +410,10 @@ class Inference(object):
                 if l == 1:
                     p, o_sepp  = self.infer_sep_pos(data_dir=d) 
                     pull_hold_p = p
-                    if save: self.plot(d, o_sepp[0], cmap=False, show=False, plot_type='sep_pos', save_dir=save_dir)
+                    if save: self.plot(d, o_sepp[0], cmap=cmap, show=False, plot_type='sep_pos', save_dir=save_dir)
                 else:
                     pull_hold_p = None
-                    if save: self.plot(d, o_pick, cmap=False, plot_type='pick', save_dir=save_dir)
+                    if save: self.plot(d, o_pick, cmap=cmap, plot_type='pick', save_dir=save_dir)
             return [pick_or_sep, pick_sep_p, pull_hold_p]
 
         elif infer_type == 'pick_sep':
@@ -437,11 +438,12 @@ if __name__ == '__main__':
     cfg = Config(config_data=config_path, config_type="infer")
     inference = Inference(config=cfg)
     
-    folder = "D:\\dataset\\sepnet\\test"
+    folder = "D:\\dataset\\picknet\\test"
     # folder = "D:\\dataset\\sepnet\\val\\images"
     # folder = "C:\\Users\\xinyi\\Pictures"
     # print(inference.get_image_list(folder))
     
-    res = inference.infer(data_dir=folder, save_dir="C:\\Users\\xinyi\\Desktop", infer_type='pick_sep_pos')
+    res = inference.infer(data_dir=folder, infer_type='pick_sep')
+    # res = inference.infer(data_dir=folder, save_dir="C:\\Users\\xinyi\\Desktop", infer_type='pick_sep_pos')
     print(res)
     # inference.infer(save_dir="C:\\Users\\xinyi\\Desktop")

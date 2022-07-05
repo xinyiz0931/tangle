@@ -25,6 +25,6 @@ infer:
   img_height: 512
   img_width: 512
 
-  pick_ckpt_folder: [try8,model_epoch_10.pth]
+  pick_ckpt_folder: [try0,model_epoch_19.pth]
   sepp_ckpt_folder: [try_38,model_epoch_4.pth]
   sepd_ckpt_folder: [try_new_res,model_epoch_12.pth]
