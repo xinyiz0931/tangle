@@ -426,7 +426,7 @@ class Inference(object):
                     if save: self.plot(d, [o_sepp[0],o_sepd[0]], grasps=p[0], plot_type='sep', save_dir=save_dir)
                 else:
                     pull_hold_p, outputs_dir = None, None
-                    if save: self.plot(d, o_pick, cmap=False, plot_type='pick', save_dir=save_dir)
+                    if save: self.plot(d, o_pick, plot_type='pick', save_dir=save_dir)
             return [pick_or_sep, pick_sep_p, pull_hold_p, outputs_dir]
         else: 
             print(f"Wrong infer type! ")

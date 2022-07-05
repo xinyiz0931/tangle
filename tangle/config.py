@@ -5,7 +5,6 @@ Date: 20220517
 """
 from logging import root
 import os
-from chainer import config
 import yaml
 
 class Config(object):

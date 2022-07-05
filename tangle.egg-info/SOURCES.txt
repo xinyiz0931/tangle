@@ -1,5 +1,13 @@
 README.md
 setup.py
+tangle/__init__.py
+tangle/config.py
+tangle/dataset.py
+tangle/inference.py
+tangle/model.py
+tangle/model_parts.py
+tangle/trainer.py
+tangle/utils.py
 tangle.egg-info/PKG-INFO
 tangle.egg-info/SOURCES.txt
 tangle.egg-info/dependency_links.txt
