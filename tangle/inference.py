@@ -31,8 +31,8 @@ class Inference(object):
         models = [False,False,False]
 
         if 'pick' in self.infer_type:
-            # self.picknet = PickNet(model_type='fcn', out_channels=2)
-            self.picknet = torch.hub.load("pytorch/vision:v0.10.0", "fcn_resnet50", pretrained=False)
+            self.picknet = PickNet(model_type='unet', out_channels=2)
+            # self.picknet = torch.hub.load("pytorch/vision:v0.10.0", "fcn_resnet50", pretrained=False)
             models[0] = True
 
         if 'sep' in self.infer_type:
@@ -128,6 +128,7 @@ class Inference(object):
         outputs = []
         pick_or_sep = []
         pick_sep_p = []
+        scores = []
 
         if self.mode == 'test':
             if self.data_list == []:
@@ -138,14 +139,15 @@ class Inference(object):
                 img = cv2.resize(cv2.imread(d), (self.img_w, self.img_h))
                 img_t = self.transform(img)
                 img_t = torch.unsqueeze(img_t, 0).cuda() if self.use_cuda else torch.unsqueeze(img_t, 0)
-                h = self.picknet(img_t)['out'][0]
+                # h = self.picknet(img_t)['out'][0]
+                h = self.picknet(img_t)[0]
                 h = h.detach().cpu().numpy()
 
                 pick_y, pick_x = np.unravel_index(h[0].argmax(), h[0].shape)
                 sep_y, sep_x = np.unravel_index(h[1].argmax(), h[1].shape)
 
                 pick_sep_p.append([[pick_x, pick_y], [sep_x, sep_y]])
-
+                scores.append([h[0].max(), h[1].max()])
                 if h[0].max() > h[1].max(): pick_or_sep.append(0)
                 else: pick_or_sep.append(1)
                 outputs.append(h) # 2xHxW
@@ -376,10 +378,12 @@ class Inference(object):
         
         if infer_type == 'pick':
             pick_or_sep, pick_sep_p, outputs = self.infer_pick(data_dir=data_dir)
+            scores = []
             if save: 
                 for d, o in zip(self.data_list, outputs):
+                    scores.append([o[0].max(), o[1].max()])
                     self.plot(d, o, cmap=cmap, save_dir=save_dir, plot_type=infer_type)
-            return [pick_or_sep, pick_sep_p]
+            return [pick_or_sep, pick_sep_p, scores]
 
         elif infer_type == 'sep_pos':
             pull_hold_p, outputs = self.infer_sep_pos(data_dir=data_dir)
@@ -406,7 +410,9 @@ class Inference(object):
         
         elif infer_type == 'pick_sep_pos':
             pick_or_sep, pick_sep_p, outputs_pick = self.infer_pick(data_dir=data_dir)
+            scores = []
             for d, o_pick, l in zip(self.data_list, outputs_pick, pick_or_sep):
+                scores.append([o_pick[0].max(), o_pick[1].max()])
                 if l == 1:
                     p, o_sepp  = self.infer_sep_pos(data_dir=d) 
                     pull_hold_p = p
@@ -414,11 +420,13 @@ class Inference(object):
                 else:
                     pull_hold_p = None
                     if save: self.plot(d, o_pick, cmap=cmap, plot_type='pick', save_dir=save_dir)
-            return [pick_or_sep, pick_sep_p, pull_hold_p]
+            return [pick_or_sep, pick_sep_p, pull_hold_p, scores]
 
         elif infer_type == 'pick_sep':
             pick_or_sep, pick_sep_p, outputs_pick = self.infer_pick(data_dir=data_dir)
+            scores = []
             for d, o_pick, l in zip(self.data_list, outputs_pick, pick_or_sep):
+                scores.append([o_pick[0].max(), o_pick[1].max()])
                 if l == 1:
                     p, o_sepp  = self.infer_sep_pos(data_dir=d) 
                     _, o_sepd = self.infer_sep_dir(data_dir=d, grasps=p)
@@ -428,7 +436,8 @@ class Inference(object):
                 else:
                     pull_hold_p, outputs_dir = None, None
                     if save: self.plot(d, o_pick, plot_type='pick', save_dir=save_dir)
-            return [pick_or_sep, pick_sep_p, pull_hold_p, outputs_dir]
+
+            return [pick_or_sep, pick_sep_p, pull_hold_p, scores, outputs_dir]
         else: 
             print(f"Wrong infer type! ")
 if __name__ == '__main__':
