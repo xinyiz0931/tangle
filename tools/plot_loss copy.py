@@ -14,11 +14,15 @@ sns.set()
 if __name__ == "__main__":
     
     # read log file
-    root_dir = "C:\\Users\\xinyi\\Documents"
-    root_dir = "D:\\"
-    ckpt_path = os.path.join(root_dir, "Checkpoint", "try_retrain_picknet_unet")
+    from tangle.config import Config
+    config_path = "./cfg/config.yaml"
+    cfg = Config(config_type="train")
+    print(f"Plot from {cfg.save_dir}")
+    # root_dir = "C:\\Users\\xinyi\\Documents"
+    # root_dir = "D:\\"
+    # ckpt_path = os.path.join(root_dir, "Checkpoint", "try_retrain_picknet_unet")
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dir', '-d', default=ckpt_path, help='path to checkchpoint')
+    parser.add_argument('--dir', '-d', default=cfg.save_dir, help='path to checkchpoint')
     args = parser.parse_args()
     
     log_path = os.path.join(args.dir, 'log.csv')

@@ -1,5 +1,13 @@
+"""
+Dataset class
+    `PickDataset` for PickNet
+    `SepDataset` for SepPositionNet, SepDirectionNet
+Author: xinyi
+Date: 20220517
+"""
 import os
 import json
+import tqdm
 import numpy as np
 import cv2
 import torch
@@ -11,17 +19,10 @@ from tangle.utils import *
 # transform = transforms.Compose(
 #     [transforms.ToTensor(),
 #      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-transform = transforms.Compose(
-    [
-     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+# transform = transforms.Compose(
+#     [
+#      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-"""
-Dataset class
-    `PickDataset` for PickNet
-    `SepDataset` for SepPositionNet, SepDirectionNet
-Author: xinyi
-Date: 20220517
-"""
 class PickDataset(Dataset):
     """
     Output: 
@@ -46,8 +47,8 @@ class PickDataset(Dataset):
             if data_inds == None:
                 num_inds = len(os.listdir(img_folder))
                 data_inds = random_inds(num_inds, num_inds)
-
-            for i in data_inds: 
+            for i in tqdm.tqdm(data_inds, f"Processing dataset", ncols=100):
+            # for i in data_inds: 
                 self.images.append(os.path.join(img_folder, "%06d.png"%i))
                 self.masks.append(os.path.join(msk_folder, "%06d.png"%i))
                 self.labels.append(np.load(os.path.join(lbl_folder, "%06d.npy"%i))[0])
@@ -127,7 +128,8 @@ class SepDataset(Dataset):
                 data_inds = random_inds(num_inds, num_inds)
 
             if 'pos ' in net_type:
-                for i in data_inds:
+                # for i in data_inds:
+                for i in tqdm.tqdm(data_inds, f"Processing dataset", ncols=100):
                     img = cv2.imread(os.path.join(img_folder, '%06d.png'%i))
                     self.images.append(img)
                     
@@ -135,7 +137,8 @@ class SepDataset(Dataset):
                     self.positions.append(os.path.join(pos_folder, '%06d.npy'%i))
 
             elif 'dir' in net_type:
-                for i in data_inds:
+                # for i in data_inds:
+                for i in tqdm.tqdm(data_inds, f"Processing dataset", ncols=100):
                     dir_labels = np.load(os.path.join(dir_folder, "%06d.npy"%i))
                     self.images.extend([os.path.join(img_folder, '%06d.png'%i) for _ in range(16)])                 
                     self.positions.extend([os.path.join(pos_folder, '%06d.npy'%i) for _ in range(16)])
@@ -183,15 +186,41 @@ class SepDataset(Dataset):
 
 if __name__ == "__main__":
 
-    # data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\HoldAndPullDirectionDataAll"
-    data_folder = 'D:\\Dataset\\sepnet\\val'
-    inds = random_inds(2, 100)
+    from tangle import Config
+    cfg = Config(config_type="train")
+    data_folder = cfg.data_dir
+    print(np.load(os.path.join(data_folder, "labels", "000000.npy")))
+    s_num = 0
+    label_f = os.path.join(data_folder, "labels") 
+    # for d in tqdm.tqdm(os.listdir(label_f), "Proccessing", ncols=100):
+    #     if np.load(os.path.join(label_f, d))[0]: 
+    #         s_num += 1
+    # print(s_num, "/", len(os.listdir(label_f)) )
+    inds = random_inds(20,100000)
+    train_data = PickDataset(512,512,data_folder, data_type="train", data_inds=inds)
+    for i in range(len(train_data)):
+        img, msks = train_data[i]
+        img = visualize_tensor(img)
+        msk_pick = visualize_tensor(msks[0], cmap=True)
+        msk_sep = visualize_tensor(msks[1], cmap=True)
+        vis1 = cv2.addWeighted(img, 0.65, msk_pick, 0.35, 1)
+        vis2 = cv2.addWeighted(img, 0.65, msk_sep, 0.35, 1)
+        cv2.imshow("", cv2.hconcat([vis1, vis2]))
+        cv2.waitKey()
+        cv2.destroyAllWindows()
+        # if i > 20: break
 
-    # train_dataset = SepDataset(512, 512, data_folder, net_type='dir', data_inds=inds)
-    train_dataset = SepDataset(512, 512, data_folder, net_type='dir')
-    print(len(train_dataset))
-    loader = DataLoader(train_dataset)
-    print(len(loader))
+
+
+    # data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\HoldAndPullDirectionDataAll"
+    # data_folder = 'D:\\Dataset\\sepnet\\val'
+    # inds = random_inds(2, 100)
+
+    # # train_dataset = SepDataset(512, 512, data_folder, net_type='dir', data_inds=inds)
+    # train_dataset = SepDataset(512, 512, data_folder, net_type='dir')
+    # print(len(train_dataset))
+    # loader = DataLoader(train_dataset)
+    # print(len(loader))
     # for i in range(len(train_dataset)):
     #     img, direction, lbl = train_dataset[i]
     #     print(img.shape, direction.shape, lbl.shape)

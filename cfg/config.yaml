@@ -1,30 +1,29 @@
 root_dir: 'D:\\'
-pick_data_folder: picknet
-sep_data_folder: sepnet
 
 train:
-  net_type: sep_dir
+  net_type: pick
   epochs: 100
   use_cuda: True
   img_height: 512
   img_width: 512
-  batch_size: 4
+  batch_size: ave
   learning_rate: 0.0001
   momentum: 0.9
   weight_decay: 0.0001
-  num_workers: 4
+  num_workers: 0
   test_ratio: 0.15
 
-  save_folder: try_crossing_map
+  save_folder: try_retrain_picknet_unet
 
 infer:
-  infer_type: pick_sep
+  infer_type: pick
   mode: test
   use_cuda: True
   batch_size: 1
   img_height: 512
   img_width: 512
-
-  pick_ckpt_folder: [try0,model_epoch_19.pth]
+  pick_ckpt_folder: [try0, model_epoch_19.pth]
+  # pick_ckpt_folder: [try8,model_epoch_10.pth]
+  # pick_ckpt_folder: [try_retrain_picknet_unet, model_epoch_5.pth]
   sepp_ckpt_folder: [try_38,model_epoch_4.pth]
   sepd_ckpt_folder: [try_new_res,model_epoch_12.pth]

@@ -35,6 +35,7 @@ class Trainer(object):
         img_w = config.img_width
         data_num = len(os.listdir(os.path.join(config.data_dir, 'images')))
         train_inds, test_inds = split_random_inds(data_num, config.test_ratio)
+        # train_inds, test_inds = split_random_inds(1000,0.1)
 
         if self.net_type == 'pick':
             self.model = PickNet(model_type='unet', out_channels=2)

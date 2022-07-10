@@ -11,7 +11,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-from bpbot.utils import *
+# from bpbot.utils import *
 # from bpbot.grasping import Gripper
 # Cross entropy loss for 2D outputs
 import torch.nn as nn
@@ -121,7 +121,7 @@ def visualize_tensor(img_t, cmap=False):
     img = img_t.detach().cpu().numpy()
     if len(img.shape) == 2: # (h,w)
         vis = cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-
+        vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET) if cmap else vis 
     elif img.shape[0] == 3 or (img.shape[0] == 1 and cmap is False): # (3,h,w) or (1,h,w)
         vis = np.moveaxis(img, 0, 2)
         vis = cv2.normalize(vis, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
@@ -193,6 +193,7 @@ def vector2direction(drag_v):
     input: drag_v - 2d normalized vector
     output: direction (degree) of image counterclockwise-rotation which makes drag_v equals [1,0]
     """
+    from bpbot.utils import calc_2vectors_angle
     degree_x = calc_2vectors_angle(drag_v, [1,0])
     degree_y = calc_2vectors_angle(drag_v, [0,1])
     if degree_y <= 90: rot_degree = degree_x
@@ -200,6 +201,7 @@ def vector2direction(drag_v):
     return rot_degree
 
 def angle2vector(r, point_to='right'):
+    from bpbot.utils import rotate_point
     if point_to == 'right':
         v = rotate_point([1,0], r)
     elif point_to == 'left':
@@ -212,6 +214,7 @@ def direction2vector(rot_degree):
     output: vector of dragging on pre-rotation image
     rotate the [1,0] clockwise for rot_degree
     """
+    from bpbot.utils import rotate_point
     # [1,0] -> drag_v_norm
     drag_v = rotate_point([1,0], rot_degree)
     drag_v = np.array(drag_v) / np.linalg.norm(np.array(drag_v)) # 2d norm
