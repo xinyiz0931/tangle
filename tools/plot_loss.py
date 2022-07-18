@@ -15,8 +15,10 @@ if __name__ == "__main__":
     
     # read log file
     root_dir = "C:\\Users\\xinyi\\Documents"
-    root_dir = "D:\\"
-    ckpt_path = os.path.join(root_dir, "Checkpoint", "try_retrain_picknet_unet")
+    # root_dir = "D:\\"
+    root_dir = "/home/hlab/Documents"
+    # ckpt_path = os.path.join(root_dir, "Checkpoint", "try_retrain_picknet_unet")
+    ckpt_path = os.path.join(root_dir, "Checkpoint", "try_38")
     parser = argparse.ArgumentParser()
     parser.add_argument('--dir', '-d', default=ckpt_path, help='path to checkchpoint')
     args = parser.parse_args()

@@ -151,14 +151,12 @@ class Inference(object):
                 if h[0].max() > h[1].max(): pick_or_sep.append(0)
                 else: pick_or_sep.append(1)
                 outputs.append(h) # 2xHxW
-
         elif self.mode == 'val':
-            res_list = []
             for sample_batched in self.val_loader:
                 sample_batched = [Variable(d.cuda() if self.use_cuda else d) for d in sample_batched]
                 img, mask_gt = sample_batched
                 heatmaps = self.picknet(img)
-
+                mask_gt = mask_gt[0]
                 # get ground truth label
                 if mask_gt[0].max() >=  mask_gt[1].max(): lbl_gt = 0
                 else: lbl_gt = 1
@@ -170,8 +168,8 @@ class Inference(object):
                     h = heatmaps[j].detach().cpu().numpy()
                     if h[0].max() >= h[1].max(): lbl_pred = 0
                     else: lbl_pred = 1
-                    res_list.append(h)
-       
+                    outputs.append([lbl_gt, lbl_pred])
+
         return pick_or_sep, pick_sep_p, outputs 
 
     def infer_sep_pos(self, data_dir=None):
@@ -375,15 +373,20 @@ class Inference(object):
     def infer(self, cmap=True, data_dir=None, save_dir=None, save=True, infer_type=None):
         self.data_list = [] # ininitialize 
         if infer_type is None: infer_type = self.infer_type
-        
         if infer_type == 'pick':
             pick_or_sep, pick_sep_p, outputs = self.infer_pick(data_dir=data_dir)
-            scores = []
-            if save: 
-                for d, o in zip(self.data_list, outputs):
-                    scores.append([o[0].max(), o[1].max()])
-                    self.plot(d, o, cmap=cmap, save_dir=save_dir, plot_type=infer_type)
-            return [pick_or_sep, pick_sep_p, scores]
+            if self.mode == "val":
+                succ = 0
+                for o in outputs: 
+                    if o[0] == o[1]: succ +=1 
+                print("Success rate: ", succ," / ", len(outputs))  
+            else:
+                scores = []
+                if save: 
+                    for d, o in zip(self.data_list, outputs):
+                        scores.append([o[0].max(), o[1].max()])
+                        self.plot(d, o, cmap=cmap, save_dir=save_dir, plot_type=infer_type)
+                return [pick_or_sep, pick_sep_p, scores]
 
         elif infer_type == 'sep_pos':
             pull_hold_p, outputs = self.infer_sep_pos(data_dir=data_dir)
@@ -424,6 +427,7 @@ class Inference(object):
 
         elif infer_type == 'pick_sep':
             pick_or_sep, pick_sep_p, outputs_pick = self.infer_pick(data_dir=data_dir)
+            print(pick_or_sep, pick_sep_p, outputs_pick)
             scores = []
             for d, o_pick, l in zip(self.data_list, outputs_pick, pick_or_sep):
                 scores.append([o_pick[0].max(), o_pick[1].max()])
@@ -443,16 +447,16 @@ class Inference(object):
 if __name__ == '__main__':
 
     from tangle import Config
-    config_path = "./cfg\\config.yaml"
-    cfg = Config(config_data=config_path, config_type="infer")
+    cfg = Config(config_type='train')
     inference = Inference(config=cfg)
     
     folder = "D:\\dataset\\picknet\\test"
+    folder = "/home/hlab/Documents/Dataset/picknet/test/novel set"
     # folder = "D:\\dataset\\sepnet\\val\\images"
     # folder = "C:\\Users\\xinyi\\Pictures"
     # print(inference.get_image_list(folder))
     
-    res = inference.infer(data_dir=folder, infer_type='pick_sep')
+    # res = inference.infer(data_dir=folder, infer_type='pick')
+    res = inference.infer(data_dir=folder,infer_type='pick')
     # res = inference.infer(data_dir=folder, save_dir="C:\\Users\\xinyi\\Desktop", infer_type='pick_sep_pos')
-    print(res)
     # inference.infer(save_dir="C:\\Users\\xinyi\\Desktop")

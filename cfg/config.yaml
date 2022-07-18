@@ -1,4 +1,4 @@
-root_dir: 'D:\\'
+root_dir: '/home/hlab/Documents'
 
 train:
   net_type: pick
@@ -24,6 +24,6 @@ infer:
   img_width: 512
   pick_ckpt_folder: [try0, model_epoch_19.pth]
   # pick_ckpt_folder: [try8,model_epoch_10.pth]
-  # pick_ckpt_folder: [try_retrain_picknet_unet, model_epoch_5.pth]
+  # pick_ckpt_folder: [try_retrain_picknet_unet, model_epoch_25.pth]
   sepp_ckpt_folder: [try_38,model_epoch_4.pth]
   sepd_ckpt_folder: [try_new_res,model_epoch_12.pth]

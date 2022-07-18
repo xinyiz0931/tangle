@@ -23,7 +23,8 @@ class PickNet(nn.Module):
         self.model_type = model_type
         self.out_channels = out_channels
         if model_type == 'unet': 
-            resnet = torchvision.models.resnet.resnet101(pretrained=True)
+            # resnet = torchvision.models.resnet.resnet101(pretrained=True)
+            resnet = torchvision.models.resnet.resnet50(pretrained=True)
             down_blocks = []
             up_blocks = []
             self.input_block = nn.Sequential(*list(resnet.children()))[:3]

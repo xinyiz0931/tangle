@@ -18,9 +18,7 @@ def main():
         cfg = Config(config_type='infer')
         inference = Inference(config=cfg)
 
-        print(cfg.sepp_ckpt, cfg.sepd_ckpt)
-
-        inference.infer()
+        inference.infer(data_dir= "/home/hlab/Documents/Dataset/testdata")
 
 if __name__ == '__main__':
     main()

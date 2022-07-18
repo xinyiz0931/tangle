@@ -79,10 +79,10 @@ class Config(object):
             elif self.mode == "val":
                 if self.infer_type == "pick":
                     self.dataset_dir = os.path.join(
-                        root_dir, "dataset", "picknet", 'val')
+                        root_dir, "Dataset", "picknet", 'val')
                 elif self.infer_type == "sep_pos" or self.infer_type == 'sep_dir':
                     self.dataset_dir = os.path.join(
-                        root_dir, "dataset", "sepnet", 'val')
+                        root_dir, "Dataset", "sepnet", 'val')
                 else:
                     print(
                         f"Wrong mode/inference combination: {self.mode}/{self.infer_type} ... ")
