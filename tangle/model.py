@@ -200,11 +200,11 @@ if __name__ == '__main__':
 
     # 1 PickNet
     # model = PickNet(model_type='fcn', out_channels=2)
-    model = PickNet(model_type='unet', out_channels=2)
-    # model = torch.hub.load("pytorch/vision:v0.10.0", "fcn_resnet50", pretrained=True)
-    # model.load_state_dict(torch.load(model_ckpt))
-    out = model.forward(inp_img3)
-    print(f"PickNet: ", out.shape)
+    # model = PickNet(model_type='unet', out_channels=2)
+    # # model = torch.hub.load("pytorch/vision:v0.10.0", "fcn_resnet50", pretrained=True)
+    # # model.load_state_dict(torch.load(model_ckpt))
+    # out = model.forward(inp_img3)
+    # print(f"PickNet: ", out.shape)
 
     # 2.1 SepPositionNet
     #model = SepPositionNet(out_channels=2)
@@ -213,10 +213,13 @@ if __name__ == '__main__':
     
 
     # 2.2 SepDirectionnet
-    # model = SepDirectionNet(in_channels=4, backbone='resnet')
-    # out = model.forward(inp_img4, inp_direction)
-    # print(inp_img4.shape, inp_direction.shape, out.shape)
-    
+    model = SepDirectionNet(in_channels=4, backbone='resnet')
+    out = model.forward(inp_img4, inp_direction)
+    print(inp_img4.shape, inp_direction.shape, out.shape)
+    from torchviz import make_dot
+    dot = make_dot(out)
+    dot.format = 'png'
+    dot.render('torchviz-sample')
     # # print(f"SepDirectionNet: ", out.shape)
     # checkpoint = torch.load(model_ckpt)
     # model.load_state_dict(torch.load(model_ckpt))

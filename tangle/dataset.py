@@ -90,6 +90,98 @@ class PickDataset(Dataset):
                 src_img = cv2.resize(src_img, (self.img_w, self.img_h))
             return self.transform(src_img)
 
+# class SepDataset(Dataset):
+#     """
+#     Output: 
+#         torch.Size([5, 512, 512]) - 3 channel image + pull gauss + hold gauss
+#         torch.Size([2]) - normalized vector for direction, where [0,0] point to right
+#         Scalar - label: 0/1
+#     Usage: 
+#         if 'sep_pos' - 3 channel image --> 2 channel mask
+#         if 'sep_dir' - 3+2 channel image + direction --> label
+#     """
+#     def __init__(self, img_height, img_width, data_folder, net_type, sigma=6, data_type='train', data_inds=None):
+#         self.img_h = img_height
+#         self.img_w = img_width
+#         self.net_type = net_type
+#         self.sigma = sigma
+#         self.data_type = data_type
+#         self.dir_list = []
+#         for i in range(16):
+#             self.dir_list.append(angle2vector(i*360/16))
+
+#         img_folder = os.path.join(data_folder, "images")
+#         pos_folder = os.path.join(data_folder, "positions")
+#         crs_folder = os.path.join(data_folder, "heatmaps")
+#         dir_folder = os.path.join(data_folder, "directions")
+#         # lbl_folder = os.path.join(data_folder, "labels")
+
+
+#         self.transform = transforms.Compose([transforms.ToTensor()])
+#         # self.positions, self.directions, self.labels = np.array([]),np.array([]) ,np.array([]) ,np.array([])  
+#         self.images = []
+#         self.positions, self.directions, self.labels = [], [], []
+#         self.crosses = []
+#         if data_type == 'train':
+#             if data_inds == None:
+#                 num_inds = len(os.listdir(img_folder))
+#                 data_inds = random_inds(num_inds, num_inds)
+
+#             if 'pos ' in net_type:
+#                 # for i in data_inds:
+#                 for i in tqdm.tqdm(data_inds, f"Processing dataset", ncols=100):
+#                     img = cv2.imread(os.path.join(img_folder, '%06d.png'%i))
+#                     self.images.append(img)
+                    
+#                     self.images.append(os.path.join(img_folder, '%06d.png'%i))
+#                     self.positions.append(os.path.join(pos_folder, '%06d.npy'%i))
+
+#             elif 'dir' in net_type:
+#                 # for i in data_inds:
+#                 for i in tqdm.tqdm(data_inds, f"Processing dataset", ncols=100):
+#                     dir_labels = np.load(os.path.join(dir_folder, "%06d.npy"%i))
+#                     self.images.extend([os.path.join(img_folder, '%06d.png'%i) for _ in range(16)])                 
+#                     self.positions.extend([os.path.join(pos_folder, '%06d.npy'%i) for _ in range(16)])
+#                     self.directions.extend(self.dir_list)
+#                     self.labels.extend(dir_labels)
+                    
+#                     self.crosses.extend([os.path.join(crs_folder, '%06d.png'%i) for _ in range(16)])                 
+#         elif data_type == 'test':
+#             for f in os.listdir(data_folder):
+#                 if f.split('.')[-1] == 'png': self.images.append(os.path.join(data_folder, f))
+
+#     def __len__(self):
+#         return len(self.images)
+
+#     def __getitem__(self, index):
+
+#         if self.data_type == 'train':
+#             img = cv2.resize(cv2.imread(self.images[index]), (self.img_w, self.img_h))
+#             crossing = cv2.resize(cv2.imread(self.crosses[index], 0), (self.img_w, self.img_h))
+#             p = np.load(self.positions[index]) # pull, hold
+#             p_no_hold = np.array([p[0]])
+            
+#             heatmap = gauss_2d_batch(self.img_h, self.img_w, self.sigma, p)
+#             heatmap_no_hold = gauss_2d_batch(self.img_h, self.img_w, self.sigma, p_no_hold)
+            
+#             img = self.transform(img)
+#             crossing = self.transform(crossing)
+
+#             if 'pos ' in self.net_type: return img, heatmap
+            
+#             elif 'dir' in self.net_type:
+#                 # cat_img = torch.cat((img, heatmap_no_hold))
+#                 cat_img = torch.cat((img, heatmap_no_hold, crossing))
+#                 q = torch.from_numpy(self.directions[index])
+#                 l = torch.tensor(self.labels[index])
+#                 return cat_img, q, l
+
+#         elif self.data_type == 'test':
+#             img = cv2.resize(cv2.imread(self.images[index]), (self.img_w, self.img_h))
+#             img = self.transform(img)
+#             return img
+        
+#             # return all_img_no_hold, q, l
 class SepDataset(Dataset):
     """
     Output: 
@@ -107,6 +199,8 @@ class SepDataset(Dataset):
         self.sigma = sigma
         self.data_type = data_type
         self.dir_list = []
+        self.dir_num = 16
+
         for i in range(16):
             self.dir_list.append(angle2vector(i*360/16))
 
@@ -138,14 +232,14 @@ class SepDataset(Dataset):
 
             elif 'dir' in net_type:
                 # for i in data_inds:
+                print("Shape: ", )
                 for i in tqdm.tqdm(data_inds, f"Processing dataset", ncols=100):
-                    dir_labels = np.load(os.path.join(dir_folder, "%06d.npy"%i))
                     self.images.extend([os.path.join(img_folder, '%06d.png'%i) for _ in range(16)])                 
-                    self.positions.extend([os.path.join(pos_folder, '%06d.npy'%i) for _ in range(16)])
-                    self.directions.extend(self.dir_list)
-                    self.labels.extend(dir_labels)
-                    
-                    self.crosses.extend([os.path.join(crs_folder, '%06d.png'%i) for _ in range(16)])                 
+
+                self.positions = np.repeat(np.load(os.path.join(data_folder, "positions.npy")), self.dir_num, axis=0)
+                self.labels = np.repeat(np.load(os.path.join(data_folder, "directions.npy")), self.dir_num, axis=0)
+                self.directions = np.repeat(self.dir_list, self.dir_num, axis=0)
+
         elif data_type == 'test':
             for f in os.listdir(data_folder):
                 if f.split('.')[-1] == 'png': self.images.append(os.path.join(data_folder, f))
@@ -188,26 +282,28 @@ if __name__ == "__main__":
 
     from tangle import Config
     cfg = Config(config_type="train")
-    data_folder = cfg.data_dir
-    print(np.load(os.path.join(data_folder, "labels", "000000.npy")))
-    s_num = 0
-    label_f = os.path.join(data_folder, "labels") 
+    # data_folder = cfg.data_dir
+    data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\sepnet\\st"
+    train_dataset = SepDataset(512, 512, data_folder, net_type='dir')
+    print(len(train_dataset)) 
+    # s_num = 0
+    # label_f = os.path.join(data_folder, "labels") 
     # for d in tqdm.tqdm(os.listdir(label_f), "Proccessing", ncols=100):
     #     if np.load(os.path.join(label_f, d))[0]: 
     #         s_num += 1
     # print(s_num, "/", len(os.listdir(label_f)) )
-    inds = random_inds(20,100000)
-    train_data = PickDataset(512,512,data_folder, data_type="train", data_inds=inds)
-    for i in range(len(train_data)):
-        img, msks = train_data[i]
-        img = visualize_tensor(img)
-        msk_pick = visualize_tensor(msks[0], cmap=True)
-        msk_sep = visualize_tensor(msks[1], cmap=True)
-        vis1 = cv2.addWeighted(img, 0.65, msk_pick, 0.35, 1)
-        vis2 = cv2.addWeighted(img, 0.65, msk_sep, 0.35, 1)
-        cv2.imshow("", cv2.hconcat([vis1, vis2]))
-        cv2.waitKey()
-        cv2.destroyAllWindows()
+    # inds = random_inds(20,100000)
+    # train_data = PickDataset(512,512,data_folder, data_type="train", data_inds=inds)
+    # for i in range(len(train_data)):
+    #     img, msks = train_data[i]
+    #     img = visualize_tensor(img)
+    #     msk_pick = visualize_tensor(msks[0], cmap=True)
+    #     msk_sep = visualize_tensor(msks[1], cmap=True)
+    #     vis1 = cv2.addWeighted(img, 0.65, msk_pick, 0.35, 1)
+    #     vis2 = cv2.addWeighted(img, 0.65, msk_sep, 0.35, 1)
+    #     cv2.imshow("", cv2.hconcat([vis1, vis2]))
+    #     cv2.waitKey()
+    #     cv2.destroyAllWindows()
         # if i > 20: break
 
 

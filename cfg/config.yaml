@@ -1,4 +1,6 @@
-root_dir: '/home/hlab/Documents'
+# root_dir: '/home/hlab/Documents'
+# root_dir: 'D:'
+root_dir: 'C:\\Users\\xinyi\\Documents'
 
 train:
   net_type: pick

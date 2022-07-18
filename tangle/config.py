@@ -5,7 +5,6 @@ Date: 20220517
 Use it to load default config file by `cfg = Config(config_type="train")`
 Otherwise, create a dictionary and use `cfg = Config(config_type="train", config_data=config_data)`
     config_data = {
-        # "root_dir": "D:\\",
         "root_dir": "/home/hlab/Documents/",
         "infer": 
         {

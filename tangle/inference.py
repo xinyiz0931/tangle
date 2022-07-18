@@ -380,6 +380,7 @@ class Inference(object):
                 for o in outputs: 
                     if o[0] == o[1]: succ +=1 
                 print("Success rate: ", succ," / ", len(outputs))  
+                return [succ, len(outputs)]
             else:
                 scores = []
                 if save: 

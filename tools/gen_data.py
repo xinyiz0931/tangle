@@ -40,23 +40,21 @@ def gen_sep_data(source_dir, dest_dir):
     ├── images
     │   ├── 000000.png
     │   └── ...
-    ├── positions = np.array([[pull_x, pull_y],[hold_x, hold_y]])
-    │   ├── 000000.npy
-    │   └── ...
-    └── direction - np.array([1,0,0,0,...]), shape=(16 x 1)
-        ├── 000000.npy
-        └── ...
+    ├── positions.npz - np.array([[pull_x, pull_y, hold_x, hold_y], [...], ...]), shape = (16 x N)
+    └── direction.npz - np.array([[1,0,0,0,...], [...], ...]), shape=(16 x N)
     """
     itvl = 16
     images_dir = os.path.join(dest_dir, 'images')
-    positions_dir = os.path.join(dest_dir, 'positions')
-    directions_dir = os.path.join(dest_dir, 'directions')
+    positions_path = os.path.join(dest_dir, 'positions.npy')
+    directions_path = os.path.join(dest_dir, 'directions.npy')
     
-    for d in [dest_dir, images_dir, positions_dir, directions_dir]:
-        if not os.path.exists(d): os.mkdir(d)
+    if not os.path.exists(dest_dir): os.mkdir(dest_dir)
+    if not os.path.exists(images_dir): os.mkdir(images_dir)
     
     num = 0
     num_exist = len(os.listdir(images_dir))
+    positions_list = []
+    directions_list = []
     print(f"Total {len(os.listdir(source_dir))} samples! ")
     for data in os.listdir(source_dir):
         d= os.path.join(source_dir, data)
@@ -73,24 +71,26 @@ def gen_sep_data(source_dir, dest_dir):
             directions[d_index] = 1
         keypoints = np.reshape(j['pullhold'], (2,2))
         new_img_path = os.path.join(images_dir, '%06d.png'%(num+num_exist))
-        new_position_path = os.path.join(positions_dir, '%06d.npy'%(num+num_exist))
-        new_direction_path = os.path.join(directions_dir, '%06d.npy'%(num+num_exist))
         
         cv2.imwrite(new_img_path, img)
-        np.save(new_position_path, keypoints)
-        np.save(new_direction_path, directions)
+        positions_list.append(keypoints)
+        directions_list.append(directions)
         num += 1
     
         if num % 100 == 0: 
             print(f"Transfer {num} samples! ") 
+    np.save(positions_path, positions_list)
+    np.save(directions_path, directions_list)
 
 if __name__ == "__main__":
     src_dir = 'C:\\Users\\xinyi\\Documents\\XYBin_OnlyCalc\\bin\\exp' 
-    dest_dir = 'D:\\Dataset\\sepnet\\train'
+    # dest_dir = 'D:\\Dataset\\sepnet\\train'
+    dest_dir = 'C:\\Users\\xinyi\\Documents\\Dataset\\sepnet'
     for _s in os.listdir(src_dir):
         if _s[0] == '_': continue
         _src_dir = os.path.join(src_dir, _s)
-        print('------------------', _s, '--------------------')
-        gen_sep_data(_src_dir, dest_dir)
+        _dest_dir = os.path.join(dest_dir, _s)
+        print('--------', _src_dir, " => ", _dest_dir, '--------')
+        gen_sep_data(_src_dir, _dest_dir)
 
 
