@@ -3,19 +3,19 @@
 root_dir: 'C:\\Users\\xinyi\\Documents'
 
 train:
-  net_type: pick
+  net_type: sep_dir
   epochs: 100
   use_cuda: True
   img_height: 512
   img_width: 512
-  batch_size: ave
-  learning_rate: 0.0001
+  batch_size: 12 
+  learning_rate: 0.0005
   momentum: 0.9
   weight_decay: 0.0001
-  num_workers: 0
-  test_ratio: 0.15
+  num_workers: 4
+  test_ratio: 0.10
 
-  save_folder: try_retrain_picknet_unet
+  save_folder: try_new_sepnet_using_u_resnet
 
 infer:
   infer_type: pick

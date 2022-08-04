@@ -1,12 +1,12 @@
-Metadata-Version: 2.1
+Metadata-Version: 1.0
 Name: tangle
 Version: 0.1.0
 Summary: Tangle network.
+Home-page: UNKNOWN
 Author: Xinyi Zhang
+Author-email: UNKNOWN
 License: UNKNOWN
+Description: # tangle
+        tangle solutions for robotic bin picking
+        
 Platform: UNKNOWN
-
-# tangle
-tangle solutions for robotic bin picking
-
-

@@ -52,8 +52,9 @@ class Config(object):
                     root_dir, "Dataset", "picknet", "train")
 
             elif "sep" in self.net_type:
-                self.data_dir = os.path.join(
-                    root_dir, "Dataset", "sepnet", "train")
+                # self.data_dir = os.path.join(
+                #     root_dir, "Dataset", "sepnet", "train")
+                self.data_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\sepnet\\sr"
 
             else:
                 print("Wrong net type! Select from pick/sep_pos/sep_dir ...")

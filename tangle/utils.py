@@ -26,6 +26,9 @@ class CrossEntropyLoss2d(nn.Module):
     def forward(self, inputs, targets):
         return self.nll_loss(F.log_softmax(inputs, dim=1), targets)
 
+def test_cpp(string, number):
+    return string*int(number)
+    
 def random_inds(sample_num, all_num):
     return random.sample(list(range(all_num)), sample_num)
 
@@ -129,7 +132,7 @@ def visualize_tensor(img_t, cmap=False):
         vis = np.moveaxis(img, 0, 2) # (1,h,w)
         vis = cv2.normalize(vis, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
         vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET) if cmap else vis
-    elif img.shape[0] == 2 or img.shape > 3:
+    elif img.shape[0] == 2 or img.shape[0] > 3:
         img_c = []
         for i in range(img.shape[0]):
             _img = cv2.normalize(img[i], None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)

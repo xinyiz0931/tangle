@@ -110,6 +110,72 @@ class SepPositionNet(nn.Module):
         heatmaps = self.sigmoid(output[:,:self.out_channels, :, :])
         return heatmaps
 
+###########################################################################
+class SepNetD(nn.Module):
+    """
+    Input: 
+        torch.size([B,5,H,W]) - image + pull map + hold map
+        torch.size([B,2]) - direction vector [x,y]
+    Output: scalar - 0/1
+    Usage: backbone = 'conv' or 'resnet'
+    """
+    def __init__(self,  in_channels=5, backbone='conv'):
+        super().__init__()
+        image_feature_dim = 256
+        action_feature_dim = 128
+        output_dim = 16
+        self.backbone = backbone
+        self.action_encoder = MLP(2, action_feature_dim, [action_feature_dim, action_feature_dim])
+        self.decoder = MLP(image_feature_dim + action_feature_dim, 2 * output_dim, [1024, 1024, 1024]) # 2 classes
+        self.decoder = MLP(image_feature_dim, output_dim, [1024, 1024, 1024]) # 18 classes
+        
+        if backbone == 'conv':
+            self.image_encoder_1 = Conv(in_channels, 32)
+            self.image_encoder_2 = Down(32, 64)
+            self.image_encoder_3 = Down(64, 128)
+            self.image_encoder_4 = Down(128, 256)
+            self.image_encoder_5 = Down(256, 512)
+            self.image_encoder_6 = Down(512, 512)
+            self.image_encoder_7 = Down(512, 512)
+            self.image_feature_extractor = MLP(512*8*8, image_feature_dim, [image_feature_dim])
+        if backbone =='resnet':
+            self.resnet = resnet101(pretrained=True)
+            self.resnet.conv1 = nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3,bias=False)
+            modules = list(self.resnet.children())[:-1]      # delete the last fc layer.
+            # modules.append(nn.Dropout(0.5))
+            self.resnet = nn.Sequential(*modules)
+            self.image_feature_extractor = MLP(2048*2*2, image_feature_dim, [image_feature_dim])
+            # self.linear = nn.Linear(2048, out_features=1)
+    
+    def forward(self, observation):
+        """
+        Input: torch.Size([1,5,512,512]), torch.Size([1, 2])
+        Output: torch.Size([1, 2])
+        """
+        x0 = observation
+        # # print("================= image ==================")
+        if self.backbone == 'conv':
+            x1 = self.image_encoder_1(x0)
+            x2 = self.image_encoder_2(x1)
+            x3 = self.image_encoder_3(x2)
+            x4 = self.image_encoder_4(x3)
+            x5 = self.image_encoder_5(x4)
+            x6 = self.image_encoder_6(x5)
+            x7 = self.image_encoder_7(x6)
+            embedding = x7.reshape([x7.size(0), -1])
+            feature = self.image_feature_extractor(embedding)
+        
+        if self.backbone == 'resnet':
+            x1 = self.resnet(x0)
+            embedding = x1
+            feature = self.image_feature_extractor(embedding)
+            
+        output = self.decoder(feature)
+        
+        return output
+
+###########################################################################
+
 class SepDirectionNet(nn.Module):
     """
     Input: 
@@ -213,13 +279,19 @@ if __name__ == '__main__':
     
 
     # 2.2 SepDirectionnet
-    model = SepDirectionNet(in_channels=4, backbone='resnet')
-    out = model.forward(inp_img4, inp_direction)
-    print(inp_img4.shape, inp_direction.shape, out.shape)
-    from torchviz import make_dot
-    dot = make_dot(out)
-    dot.format = 'png'
-    dot.render('torchviz-sample')
+    model = SepDirectionNet(in_channels=5, backbone='conv')
+    out = model.forward(inp_img5, inp_direction)
+    print(inp_img5.shape, inp_direction.shape, out.shape)
+    # from torchviz import make_dot
+    # dot = make_dot(out)
+    # dot.format = 'png'
+    # dot.render('torchviz-sample')
     # # print(f"SepDirectionNet: ", out.shape)
     # checkpoint = torch.load(model_ckpt)
     # model.load_state_dict(torch.load(model_ckpt))
+
+
+    model = SepNetD(in_channels=5, backbone='conv')
+    # out = model.forward(inp_img5, inp_direction)
+    out = model.forward(inp_img5)
+    print(inp_img5.shape, out.shape)

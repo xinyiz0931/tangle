@@ -4,6 +4,7 @@ tangle/__init__.py
 tangle/config.py
 tangle/dataset.py
 tangle/inference.py
+tangle/model copy.py
 tangle/model.py
 tangle/model_parts.py
 tangle/trainer.py

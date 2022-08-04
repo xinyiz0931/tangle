@@ -46,7 +46,8 @@ def gen_sep_data(source_dir, dest_dir):
     itvl = 16
     images_dir = os.path.join(dest_dir, 'images')
     positions_path = os.path.join(dest_dir, 'positions.npy')
-    directions_path = os.path.join(dest_dir, 'directions.npy')
+    labels_path = os.path.join(dest_dir, 'labels.npy')
+    direction_path = os.path.join(dest_dir, 'direction.npy')
     
     if not os.path.exists(dest_dir): os.mkdir(dest_dir)
     if not os.path.exists(images_dir): os.mkdir(images_dir)
@@ -54,7 +55,11 @@ def gen_sep_data(source_dir, dest_dir):
     num = 0
     num_exist = len(os.listdir(images_dir))
     positions_list = []
-    directions_list = []
+    labels_list = []
+    direction_list = []
+    for i in range(16): 
+        direction_list.append(angle2vector(i*360/16))
+
     print(f"Total {len(os.listdir(source_dir))} samples! ")
     for data in os.listdir(source_dir):
         d= os.path.join(source_dir, data)
@@ -63,24 +68,25 @@ def gen_sep_data(source_dir, dest_dir):
         f = open(j_path, 'r+')
         j = json.loads(f.read())
         img = cv2.imread(os.path.join(d, 'depth.png'))
-        directions = [0]*itvl
+        labels = [0]*itvl
         for angle in j['angle']:
             angle += 180
             angle %= 360
             d_index = int(angle/(360/itvl))
-            directions[d_index] = 1
+            labels[d_index] = 1
         keypoints = np.reshape(j['pullhold'], (2,2))
         new_img_path = os.path.join(images_dir, '%06d.png'%(num+num_exist))
         
         cv2.imwrite(new_img_path, img)
         positions_list.append(keypoints)
-        directions_list.append(directions)
+        labels_list.append(labels)
         num += 1
     
         if num % 100 == 0: 
             print(f"Transfer {num} samples! ") 
     np.save(positions_path, positions_list)
-    np.save(directions_path, directions_list)
+    np.save(labels_path, labels_list)
+    np.save(direction_path, direction_list)
 
 if __name__ == "__main__":
     src_dir = 'C:\\Users\\xinyi\\Documents\\XYBin_OnlyCalc\\bin\\exp' 

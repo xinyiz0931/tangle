@@ -198,28 +198,32 @@ class SepDataset(Dataset):
         self.net_type = net_type
         self.sigma = sigma
         self.data_type = data_type
-        self.dir_list = []
-        self.dir_num = 16
+        dir_list = []
+        dir_num = 16
 
-        for i in range(16):
-            self.dir_list.append(angle2vector(i*360/16))
 
-        img_folder = os.path.join(data_folder, "images")
-        pos_folder = os.path.join(data_folder, "positions")
-        crs_folder = os.path.join(data_folder, "heatmaps")
-        dir_folder = os.path.join(data_folder, "directions")
+        for i in range(dir_num):
+            dir_list.append(angle2vector(i*360/16))
+
+        images_folder = os.path.join(data_folder, "images")
+        positions_path = os.path.join(data_folder, "positions.npy")
+        labels_path = os.path.join(data_folder, "labels.npy")
+        direction_path = os.path.join(data_folder, "direction.npy")
+        # pos_folder = os.path.join(data_folder, "positions")
+        # crs_folder = os.path.join(data_folder, "heatmaps")
+        # dir_folder = os.path.join(data_folder, "directions")
         # lbl_folder = os.path.join(data_folder, "labels")
+        data_num = len(os.listdir(images_folder))
 
-
+        
         self.transform = transforms.Compose([transforms.ToTensor()])
         # self.positions, self.directions, self.labels = np.array([]),np.array([]) ,np.array([]) ,np.array([])  
         self.images = []
         self.positions, self.directions, self.labels = [], [], []
-        self.crosses = []
+        # self.crosses = []
         if data_type == 'train':
             if data_inds == None:
-                num_inds = len(os.listdir(img_folder))
-                data_inds = random_inds(num_inds, num_inds)
+                data_inds = random_inds(data_num, data_num)
 
             if 'pos ' in net_type:
                 # for i in data_inds:
@@ -231,14 +235,32 @@ class SepDataset(Dataset):
                     self.positions.append(os.path.join(pos_folder, '%06d.npy'%i))
 
             elif 'dir' in net_type:
-                # for i in data_inds:
-                print("Shape: ", )
-                for i in tqdm.tqdm(data_inds, f"Processing dataset", ncols=100):
-                    self.images.extend([os.path.join(img_folder, '%06d.png'%i) for _ in range(16)])                 
+                positions = np.load(positions_path)
+                labels = np.load(labels_path)
+                direction = np.load(direction_path)
+                loaded_num = 0
+                for i in data_inds:
+                    for j in range(dir_num):
+                        self.images.append(os.path.join(images_folder, '%06d.png'%i))
+                        self.positions.append(positions[i])
+                        self.labels.append(labels[i][j])
+                        self.directions.append(direction[j])
+                        loaded_num += 1
+                        # cv2.circle(src, positions[i][0], 5, (0,255,0), -1)
+                        # cv2.circle(src, positions[i][1], 5, (0,255,0), -1)
+                        # if labels[i][j] == 1: draw_vector(src, positions[i][0], dir_list[j], color=[0,255,0])
+                        print('Loading data: %d / %d' % (loaded_num, len(data_inds*len(direction))), end='')
+                        print('\r', end='') 
+                print(f"Finish loading {loaded_num} samples! ")
+                    # cv2.imshow("", src)
+                    # cv2.waitKey()
+                    # cv2.destroyAllWindows()
 
-                self.positions = np.repeat(np.load(os.path.join(data_folder, "positions.npy")), self.dir_num, axis=0)
-                self.labels = np.repeat(np.load(os.path.join(data_folder, "directions.npy")), self.dir_num, axis=0)
-                self.directions = np.repeat(self.dir_list, self.dir_num, axis=0)
+                #     self.images.extend([os.path.join(img_folder, '%06d.png'%i) for _ in range(16)])                 
+
+                # self.positions = np.repeat(np.load(os.path.join(data_folder, "positions.npy")), self.dir_num, axis=0)
+                # self.labels = (np.repeat(np.load(os.path.join(data_folder, "directions.npy")), self.dir_num, axis=0)).flatten()
+                # self.directions = np.repeat(self.dir_list, data_num, axis=0)
 
         elif data_type == 'test':
             for f in os.listdir(data_folder):
@@ -251,21 +273,21 @@ class SepDataset(Dataset):
 
         if self.data_type == 'train':
             img = cv2.resize(cv2.imread(self.images[index]), (self.img_w, self.img_h))
-            crossing = cv2.resize(cv2.imread(self.crosses[index], 0), (self.img_w, self.img_h))
-            p = np.load(self.positions[index]) # pull, hold
+            # crossing = cv2.resize(cv2.imread(self.crosses[index], 0), (self.img_w, self.img_h))
+            p = self.positions[index] # pull, hold
             p_no_hold = np.array([p[0]])
             
             heatmap = gauss_2d_batch(self.img_h, self.img_w, self.sigma, p)
-            heatmap_no_hold = gauss_2d_batch(self.img_h, self.img_w, self.sigma, p_no_hold)
+            # heatmap_no_hold = gauss_2d_batch(self.img_h, self.img_w, self.sigma, p_no_hold)
             
             img = self.transform(img)
-            crossing = self.transform(crossing)
+            # crossing = self.transform(crossing)
 
             if 'pos ' in self.net_type: return img, heatmap
             
             elif 'dir' in self.net_type:
                 # cat_img = torch.cat((img, heatmap_no_hold))
-                cat_img = torch.cat((img, heatmap_no_hold, crossing))
+                cat_img = torch.cat((img, heatmap))
                 q = torch.from_numpy(self.directions[index])
                 l = torch.tensor(self.labels[index])
                 return cat_img, q, l
@@ -277,15 +299,72 @@ class SepDataset(Dataset):
         
             # return all_img_no_hold, q, l
 
+class SepNetDDataset(Dataset):
+    def __init__(self, img_h, img_w, folder, sigma=6, data_inds=None):
+        self.img_h = img_h
+        self.img_w = img_w
+        self.sigma = sigma
+        images_folder = os.path.join(folder, "images")
+        positions_path = os.path.join(folder, "positions.npy")
+        labels_path = os.path.join(folder, "labels.npy")
+        if data_inds is None: 
+            data_num = len(os.listdir(images_folder))
+            data_inds = random_inds(data_num, data_num)
+        
+        self.transform = transforms.Compose([transforms.ToTensor()])
+        # self.positions, self.directions, self.labels = np.array([]),np.array([]) ,np.array([]) ,np.array([])  
+        self.images = []
+        self.positions, self.labels = [], [] 
+
+        positions = np.load(positions_path)
+        labels = np.load(labels_path)
+        for i in data_inds: 
+            self.images.append(os.path.join(images_folder, '%06d.png'%i))
+            self.positions.append(positions[i])
+            self.labels.append(labels[i])
+    
+    def __len__(self):
+        return len(self.images)
+    
+    def __getitem__(self, index):
+        img = cv2.resize(cv2.imread(self.images[index]), (self.img_w, self.img_h))
+        p = self.positions[index] # pull, hold
+        heatmap = gauss_2d_batch(self.img_h, self.img_w, self.sigma, p)
+        img = self.transform(img)
+        
+        cat_img = torch.cat((img, heatmap))
+        l = torch.tensor(self.labels[index])
+        return cat_img, l
 
 if __name__ == "__main__":
 
     from tangle import Config
     cfg = Config(config_type="train")
     # data_folder = cfg.data_dir
-    data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\sepnet\\st"
-    train_dataset = SepDataset(512, 512, data_folder, net_type='dir')
-    print(len(train_dataset)) 
+
+    data_inds = random_inds(10,100)
+    data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\sepnet\\u"
+    # train_dataset = SepDataset(512, 512, data_folder, net_type='dir', data_inds=data_inds)
+    train_dataset = SepNetDDataset(512, 512, data_folder)
+    img, lbl = train_dataset[23]
+    print(img.shape, lbl.shape)
+    # img, direction, lbl = train_dataset[23]
+    # for i in range(16):
+    #     img, direction, lbl = train_dataset[i]
+    #     v = direction.detach().cpu().numpy()
+    #     s = lbl.detach().cpu().numpy()
+    #     print(v,s)
+    #     depth = visualize_tensor(img[0:3,])
+    #     if s == 1: draw_vector(depth, (250,250), v, color=(0,255,0))
+    #     else: draw_vector(depth, (250,250), v, color=(255,0,0))
+    #     pull_map = visualize_tensor(img[3,:], cmap=True)
+    #     hold_map = visualize_tensor(img[4,:], cmap=True)
+    #     pull_vis = cv2.addWeighted(depth, 0.65, pull_map, 0.35, 1)
+    #     hold_vis = cv2.addWeighted(depth, 0.65, hold_map, 0.35, 1)
+
+    #     cv2.imshow("", cv2.hconcat([pull_vis, hold_vis]))
+    #     cv2.waitKey(0)
+    #     cv2.destroyAllWindows()
     # s_num = 0
     # label_f = os.path.join(data_folder, "labels") 
     # for d in tqdm.tqdm(os.listdir(label_f), "Proccessing", ncols=100):
