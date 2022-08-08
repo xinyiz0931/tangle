@@ -182,6 +182,7 @@ class PickDataset(Dataset):
 #             return img
         
 #             # return all_img_no_hold, q, l
+
 class SepDataset(Dataset):
     """
     Output: 
@@ -201,10 +202,8 @@ class SepDataset(Dataset):
         dir_list = []
         dir_num = 16
 
-
         for i in range(dir_num):
             dir_list.append(angle2vector(i*360/16))
-
         images_folder = os.path.join(data_folder, "images")
         positions_path = os.path.join(data_folder, "positions.npy")
         labels_path = os.path.join(data_folder, "labels.npy")
@@ -225,15 +224,12 @@ class SepDataset(Dataset):
             if data_inds == None:
                 data_inds = random_inds(data_num, data_num)
 
-            if 'pos ' in net_type:
-                # for i in data_inds:
+            if 'pos' in net_type:
+                positions = np.load(positions_path)
                 for i in tqdm.tqdm(data_inds, f"Processing dataset", ncols=100):
-                    img = cv2.imread(os.path.join(img_folder, '%06d.png'%i))
-                    self.images.append(img)
-                    
-                    self.images.append(os.path.join(img_folder, '%06d.png'%i))
-                    self.positions.append(os.path.join(pos_folder, '%06d.npy'%i))
-
+                    # img = cv2.imread(os.path.join(images_folder, '%06d.png'%i))
+                    self.images.append(os.path.join(images_folder, '%06d.png'%i))
+                    self.positions.append(positions[i])
             elif 'dir' in net_type:
                 positions = np.load(positions_path)
                 labels = np.load(labels_path)
@@ -283,7 +279,8 @@ class SepDataset(Dataset):
             img = self.transform(img)
             # crossing = self.transform(crossing)
 
-            if 'pos ' in self.net_type: return img, heatmap
+            if 'pos' in self.net_type: 
+                return img, heatmap
             
             elif 'dir' in self.net_type:
                 # cat_img = torch.cat((img, heatmap_no_hold))
@@ -299,7 +296,7 @@ class SepDataset(Dataset):
         
             # return all_img_no_hold, q, l
 
-class SepNetDDataset(Dataset):
+class SepMultiDataset(Dataset):
     def __init__(self, img_h, img_w, folder, sigma=6, data_inds=None):
         self.img_h = img_h
         self.img_w = img_w
@@ -312,7 +309,6 @@ class SepNetDDataset(Dataset):
             data_inds = random_inds(data_num, data_num)
         
         self.transform = transforms.Compose([transforms.ToTensor()])
-        # self.positions, self.directions, self.labels = np.array([]),np.array([]) ,np.array([]) ,np.array([])  
         self.images = []
         self.positions, self.labels = [], [] 
 
@@ -343,11 +339,61 @@ if __name__ == "__main__":
     # data_folder = cfg.data_dir
 
     data_inds = random_inds(10,100)
-    data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\sepnet\\u"
-    # train_dataset = SepDataset(512, 512, data_folder, net_type='dir', data_inds=data_inds)
-    train_dataset = SepNetDDataset(512, 512, data_folder)
-    img, lbl = train_dataset[23]
-    print(img.shape, lbl.shape)
+    # data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\sepnet\\train"    # train_dataset = SepDataset(512, 512, data_folder, net_type='dir', data_inds=data_inds)
+    data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorAugment"    # train_dataset = SepDataset(512, 512, data_folder, net_type='dir', data_inds=data_inds)
+    # img_folder = os.path.join(data_folder, "images")
+    # positions = np.load(os.path.join(data_folder, "positions.npy"))
+    # labels = np.load(os.path.join(data_folder, "labels.npy"))
+    # inds = random_inds(4, len(os.listdir(img_folder)))
+    # results = []
+    # for i in inds:
+    #     img = cv2.imread(os.path.join(img_folder, "%06d.png" % i))
+    #     drawn = img.copy()
+    #     drawn = draw_vectors_bundle(drawn, positions[i][0], scores=labels[i])
+    #     cv2.circle(drawn, positions[i][0], 7, (0,255,0), -1)
+    #     cv2.circle(drawn, positions[i][1], 7, (0,255,0), -1)    
+    #     results.append(drawn)
+    # cv2.imshow("", cv2.hconcat(results))
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    train_dataset = SepDataset(512,512,data_folder,net_type="sep_pos" )
+    print(len(train_dataset))
+    inds = random_inds(10, len(train_dataset))
+    for i in inds:
+        img, hmap = train_dataset[i]
+        depth = visualize_tensor(img)
+        pull = visualize_tensor(hmap[0], cmap=True)
+        hold = visualize_tensor(hmap[1], cmap=True)
+        pull_map = cv2.addWeighted(depth, 0.65, pull, 0.35, 1)
+        hold_map = cv2.addWeighted(depth, 0.65, hold, 0.35, 1)
+        cv2.imshow("", cv2.hconcat([depth, pull_map, hold_map]))
+        cv2.waitKey()
+        cv2.destroyAllWindows()
+    # ---------------------- SepMultiDataset -------------------
+    # train_dataset = SepMultiDataset(512, 512, data_folder, sigma=8)
+    # print(len(train_dataset))
+    # inds = random_inds(10, len(train_dataset))
+    # for i in inds:
+    #     img, lbl = train_dataset[i]
+    #     print(img.shape, lbl.shape)
+    #     depth = visualize_tensor(img[0:3])
+    #     pull = visualize_tensor(img[3], cmap=True)
+    #     hold = visualize_tensor(img[4], cmap=True)
+    #     pull_map = cv2.addWeighted(depth, 0.65, pull, 0.35, 1)
+    #     hold_map = cv2.addWeighted(depth, 0.65, hold, 0.35, 1)
+    #     drawn = draw_vectors_bundle(depth, (250,250), scores=lbl)
+    #     cv2.imshow("", cv2.hconcat([drawn, pull_map, hold_map]))
+    #     cv2.waitKey(0)
+    #     cv2.destroyAllWindows()
+    
+
+    # # data_folder = "D:\\datasets\\holdandpull_test"
+
+    # test_dataset = PickDataset(512, 512, data_folder, data_type='test')
+    # test_loader = DataLoader(test_dataset, batch_size=4, shuffle=False)
+    # print(test_dataset.images)
+    # for s in test_loader:
+    #     print(s.shape)
     # img, direction, lbl = train_dataset[23]
     # for i in range(16):
     #     img, direction, lbl = train_dataset[i]
@@ -403,24 +449,3 @@ if __name__ == "__main__":
 
     #     print(np.round(vector2direction(direction),1), lbl)
 
-    # for i in range(len(train_dataset)):
-    #     data = train_dataset[i]
-    #     for d in data:
-    #         print(d.shape)
-
-    
-
-    #     depth = visualize_tensor(img[0:3])
-    #     pull = visualize_tensor(img[3])
-    #     # hold = visualize_tensor(img[4])
-    #     plt.imshow(depth)
-    #     # plt.imshow(hold, alpha=0.5)
-    #     plt.imshow(pull, alpha=0.5)
-        # plt.show()
-    
-    # data_folder = "D:\\datasets\\holdandpull_test"
-    # test_dataset = PickDataset(512, 512, data_folder, data_type='test')
-    # test_loader = DataLoader(test_dataset, batch_size=4, shuffle=False)
-    # print(test_dataset.images)
-    # for s in test_loader:
-    #     print(s.shape)

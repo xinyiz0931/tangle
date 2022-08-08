@@ -79,14 +79,14 @@ class PickNet(nn.Module):
             # x = x[:,:self.out_channels, :, :]
             # return x
 
-class SepPositionNet(nn.Module):
+class SepNetP(nn.Module):
     """
     Input: torch.size([B,3,H,W]) - image
     Output: torch.size([B,2,H,W]) - pull map + hold map
     Usage: model_type = 'unet' or 'fcn'
     """
     def __init__(self, out_channels, img_height=512, img_width=512):
-        super(SepPositionNet, self).__init__()
+        super(SepNetP, self).__init__()
         self.out_channels = out_channels
         self.img_height = img_height
         self.img_width = img_width
@@ -110,73 +110,9 @@ class SepPositionNet(nn.Module):
         heatmaps = self.sigmoid(output[:,:self.out_channels, :, :])
         return heatmaps
 
-###########################################################################
+# --------------------------------------------------------------------------
+
 class SepNetD(nn.Module):
-    """
-    Input: 
-        torch.size([B,5,H,W]) - image + pull map + hold map
-        torch.size([B,2]) - direction vector [x,y]
-    Output: scalar - 0/1
-    Usage: backbone = 'conv' or 'resnet'
-    """
-    def __init__(self,  in_channels=5, backbone='conv'):
-        super().__init__()
-        image_feature_dim = 256
-        action_feature_dim = 128
-        output_dim = 16
-        self.backbone = backbone
-        self.action_encoder = MLP(2, action_feature_dim, [action_feature_dim, action_feature_dim])
-        self.decoder = MLP(image_feature_dim + action_feature_dim, 2 * output_dim, [1024, 1024, 1024]) # 2 classes
-        self.decoder = MLP(image_feature_dim, output_dim, [1024, 1024, 1024]) # 18 classes
-        
-        if backbone == 'conv':
-            self.image_encoder_1 = Conv(in_channels, 32)
-            self.image_encoder_2 = Down(32, 64)
-            self.image_encoder_3 = Down(64, 128)
-            self.image_encoder_4 = Down(128, 256)
-            self.image_encoder_5 = Down(256, 512)
-            self.image_encoder_6 = Down(512, 512)
-            self.image_encoder_7 = Down(512, 512)
-            self.image_feature_extractor = MLP(512*8*8, image_feature_dim, [image_feature_dim])
-        if backbone =='resnet':
-            self.resnet = resnet101(pretrained=True)
-            self.resnet.conv1 = nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3,bias=False)
-            modules = list(self.resnet.children())[:-1]      # delete the last fc layer.
-            # modules.append(nn.Dropout(0.5))
-            self.resnet = nn.Sequential(*modules)
-            self.image_feature_extractor = MLP(2048*2*2, image_feature_dim, [image_feature_dim])
-            # self.linear = nn.Linear(2048, out_features=1)
-    
-    def forward(self, observation):
-        """
-        Input: torch.Size([1,5,512,512]), torch.Size([1, 2])
-        Output: torch.Size([1, 2])
-        """
-        x0 = observation
-        # # print("================= image ==================")
-        if self.backbone == 'conv':
-            x1 = self.image_encoder_1(x0)
-            x2 = self.image_encoder_2(x1)
-            x3 = self.image_encoder_3(x2)
-            x4 = self.image_encoder_4(x3)
-            x5 = self.image_encoder_5(x4)
-            x6 = self.image_encoder_6(x5)
-            x7 = self.image_encoder_7(x6)
-            embedding = x7.reshape([x7.size(0), -1])
-            feature = self.image_feature_extractor(embedding)
-        
-        if self.backbone == 'resnet':
-            x1 = self.resnet(x0)
-            embedding = x1
-            feature = self.image_feature_extractor(embedding)
-            
-        output = self.decoder(feature)
-        
-        return output
-
-###########################################################################
-
-class SepDirectionNet(nn.Module):
     """
     Input: 
         torch.size([B,5,H,W]) - image + pull map + hold map
@@ -202,6 +138,7 @@ class SepDirectionNet(nn.Module):
             self.image_encoder_6 = Down(512, 512)
             self.image_encoder_7 = Down(512, 512)
             self.image_feature_extractor = MLP(512*8*8, image_feature_dim, [image_feature_dim])
+
         if backbone =='resnet':
             self.resnet = resnet101(pretrained=True)
             self.resnet.conv1 = nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3,bias=False)
@@ -211,48 +148,81 @@ class SepDirectionNet(nn.Module):
             self.image_feature_extractor = MLP(2048*2*2, image_feature_dim, [image_feature_dim])
             # self.linear = nn.Linear(2048, out_features=1)
     
-    def forward(self, observation, directions):
+    def forward(self, x):
         """
         Input: torch.Size([1,5,512,512]), torch.Size([1, 2])
         Output: torch.Size([1, 2])
         """
-        x0 = observation
-        # # print("================= image ==================")
+        observation, directions = x
         if self.backbone == 'conv':
-            x1 = self.image_encoder_1(x0)
-            # print(f"x0 -> x1: {x0.shape} -> {x1.shape}")
+            x1 = self.image_encoder_1(observation)
             x2 = self.image_encoder_2(x1)
-            # print(f"x1 -> x2: {x1.shape} -> {x2.shape}")
             x3 = self.image_encoder_3(x2)
-            # print(f"x2 -> x3: {x2.shape} -> {x3.shape}")
             x4 = self.image_encoder_4(x3)
-            # print(f"x3 -> x4: {x3.shape} -> {x4.shape}")
             x5 = self.image_encoder_5(x4)
-            # print(f"x4 -> x5: {x4.shape} -> {x5.shape}")
             x6 = self.image_encoder_6(x5)
-            # print(f"x5 -> x6: {x5.shape} -> {x6.shape}")
             x7 = self.image_encoder_7(x6)
-            # print(f"x6 -> x7: {x6.shape} -> {x7.shape}")
             embedding = x7.reshape([x7.size(0), -1])
-            # print(f"x7 -> image encoder output: {x7.shape} -> {embedding.shape}")
             feature = self.image_feature_extractor(embedding)
-            # print(f"image decoder input -> output: {embedding.shape} -> {feature.shape}")
         
         if self.backbone == 'resnet':
-            x1 = self.resnet(x0)
-            # print(f"x0 -> x1: {x0.shape} -> {x1.shape}")
+            x1 = self.resnet(observation)
             embedding = x1
-            # print(f"x1 -> image encoder output: {x1.shape} -> {embedding.shape}")
             feature = self.image_feature_extractor(embedding)
-            # print(f"image decoder input -> output: {embedding.shape} -> {feature.shape}")
             
-        # # print("================= action ==================")
         direction_features = self.action_encoder(directions)
 
-        output = None
         feature_input = torch.cat([feature, direction_features], dim=1)
         output = self.decoder(feature_input)
         
+        return output
+
+class SepNetD_Multi(nn.Module):
+    """
+    Input: 
+        torch.size([B,5,W,H]) - image + pull map + hold map
+    Output:
+        torch.size([B,16]) - scores for 16 directions
+    Usage: backbone = "conv" or "resnet"
+    """
+    def __init__(self, in_channels=5, backbone="conv"):
+        super().__init__()
+        image_feature_dim = 256
+        output_dim = 16
+        self.backbone = backbone
+        self.decoder = MLP(image_feature_dim, output_dim, [1024, 1024, 1024]) # 16 classes
+
+        if backbone == "conv":
+            self.image_encoder_1 = Conv(in_channels, 32)
+            self.image_encoder_2 = Down(32, 64)
+            self.image_encoder_3 = Down(64, 128)
+            self.image_encoder_4 = Down(128, 256)
+            self.image_encoder_5 = Down(256, 512)
+            self.image_encoder_6 = Down(512, 512)
+            self.image_encoder_7 = Down(512, 512)
+            self.image_feature_extractor = MLP(512*8*8, image_feature_dim, [image_feature_dim])
+        
+        if backbone == "resnet":
+            from torchvision.models import resnet50
+            self.resnet = resnet50(pretrained=True)
+            self.resnet.conv1 = nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3,bias=False)
+            num_ftrs = self.resnet.fc.in_features
+            self.resnet.fc = nn.Linear(num_ftrs, output_dim)
+        
+    def forward(self, x):
+        if self.backbone == 'conv':
+            x1 = self.image_encoder_1(x)
+            x2 = self.image_encoder_2(x1)
+            x3 = self.image_encoder_3(x2)
+            x4 = self.image_encoder_4(x3)
+            x5 = self.image_encoder_5(x4)
+            x6 = self.image_encoder_6(x5)
+            x7 = self.image_encoder_7(x6)
+            embedding = x7.reshape([x7.size(0), -1])
+            feature = self.image_feature_extractor(embedding)
+            output = self.decoder(feature)
+        elif self.backbone == "resnet":
+            output = self.resnet(x)
         return output
 
 if __name__ == '__main__':
@@ -264,7 +234,7 @@ if __name__ == '__main__':
     inp_img5 = torch.rand((batch_size, 5, 512, 512))
     inp_direction = torch.rand((batch_size,2))
 
-    # 1 PickNet
+    # ----------------------- PickNet ---------------------------- 
     # model = PickNet(model_type='fcn', out_channels=2)
     # model = PickNet(model_type='unet', out_channels=2)
     # # model = torch.hub.load("pytorch/vision:v0.10.0", "fcn_resnet50", pretrained=True)
@@ -272,26 +242,24 @@ if __name__ == '__main__':
     # out = model.forward(inp_img3)
     # print(f"PickNet: ", out.shape)
 
-    # 2.1 SepPositionNet
-    #model = SepPositionNet(out_channels=2)
-    #out = model.forward(inp_img3)
-    ## print(f"SepPositionNet: ", out.shape)
+    # ----------------------- SepNet-P ---------------------------- 
+    model = SepNetP(out_channels=2)
+    out = model.forward(inp_img3)
+    print(f"SepPositionNet: ", inp_img3.shape, out.shape)
     
 
-    # 2.2 SepDirectionnet
-    model = SepDirectionNet(in_channels=5, backbone='conv')
-    out = model.forward(inp_img5, inp_direction)
-    print(inp_img5.shape, inp_direction.shape, out.shape)
-    # from torchviz import make_dot
-    # dot = make_dot(out)
-    # dot.format = 'png'
-    # dot.render('torchviz-sample')
-    # # print(f"SepDirectionNet: ", out.shape)
-    # checkpoint = torch.load(model_ckpt)
-    # model.load_state_dict(torch.load(model_ckpt))
+    # ----------------------- SepNet-D ---------------------------- 
+    # ckpt = "C:\\Users\\xinyi\\Documents\\Checkpoint\\try_new_sepnet_using_all_conv_mse\\model_epoch_0.pth"
+    # ckpt = "C:\\Users\\xinyi\\Documents\\Checkpoint\\try_new_res\\model_epoch_0.pth"
+    model = SepNetD(in_channels=5, backbone="resnet")
+    # model.load_state_dict(torch.load(ckpt))
+    out = model.forward((inp_img5, inp_direction))
+    print(inp_img5.shape, inp_direction.shape, "=>", out.shape)
+     
+    # ----------------------- SepNet-D Multi ---------------------------- 
+    # model = SepNetD_Multi(in_channels=5, backbone="conv")
+    # model.load_state_dict(torch.load(ckpt))
 
-
-    model = SepNetD(in_channels=5, backbone='conv')
-    # out = model.forward(inp_img5, inp_direction)
-    out = model.forward(inp_img5)
-    print(inp_img5.shape, out.shape)
+    # out = model.forward(inp_img5)
+    # print(inp_img5.shape, "=>", out.shape)
+   

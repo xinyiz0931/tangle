@@ -211,56 +211,57 @@ def angle2vector(r, point_to='right'):
         v = rotate_point([-1, 0], r)
     return np.array(v) / np.linalg.norm(np.array(v))
 
-def direction2vector(rot_degree):
-    """
-    input: rotate_degree - angle of image counterclockwise-rotation which has vector [1,0]
-    output: vector of dragging on pre-rotation image
-    rotate the [1,0] clockwise for rot_degree
-    """
-    from bpbot.utils import rotate_point
-    # [1,0] -> drag_v_norm
-    drag_v = rotate_point([1,0], rot_degree)
-    drag_v = np.array(drag_v) / np.linalg.norm(np.array(drag_v)) # 2d norm
-    return drag_v
+# def direction2vector(rot_degree):
+#     """
+#     input: rotate_degree - angle of image counterclockwise-rotation which has vector [1,0]
+#     output: vector of dragging on pre-rotation image
+#     rotate the [1,0] clockwise for rot_degree
+#     """
+#     from bpbot.utils import rotate_point
+#     # [1,0] -> drag_v_norm
+#     drag_v = rotate_point([1,0], rot_degree)
+#     drag_v = np.array(drag_v) / np.linalg.norm(np.array(drag_v)) # 2d norm
+#     return drag_v
 
-def draw_drag_vector(img, start_p, drag_v, arrow_len, arrow_thinkness=2, color=(0,255,255)):
+def draw_vector(img, p, v, arrow_len=None, arrow_thickness=2, color=(0,255,255)):
     """
     drag_v: 2d normalizaed vector
     """
     h, w, _ = img.shape
-    start_p = [int(start_p[0]), int(start_p[1])]
-    stop_p = [int(start_p[0]+drag_v[0]*arrow_len), int(start_p[1]+drag_v[1]*arrow_len)]
-    color = (color[2], color[1], color[2]) # rgb --> bgr
-    # find drawable region
-    h, w, _ = img.shape
-    if stop_p[0] > w: stop_p[0] = int(start_p[0]+drag_v[0]*(w-start_p[0]-5))
-    if stop_p[1] > h: stop_p[1] = int(start_p[1]+drag_v[1]*(h-start_p[1]-5))
-    if stop_p[0] < 0: stop_p[0] = int(start_p[0]+drag_v[0]*(start_p[0]+5))
-    if stop_p[1] < 0: stop_p[1] = int(start_p[1]+drag_v[1]*(start_p[1]+5))
-    drawn = cv2.arrowedLine(img, start_p,stop_p, color, arrow_thinkness)
-    return drawn
 
-def draw_vector(img, start_p, v, arrow_len=None, arrow_thickness=2, color=(0,255,255)):
-    """
-    drag_v: 2d normalizaed vector
-    color: (r,g,b)
-    """
-    h, w, _ = img.shape
     if arrow_len == None: arrow_len = int(h/10)
-
-    start_p = [int(start_p[0]), int(start_p[1])]
-    stop_p = [int(start_p[0]+v[0]*arrow_len), int(start_p[1]+v[1]*arrow_len)]
-    color_bgr = (color[2], color[1], color[0]) # rgb --> bgr
+    stop_p = [int(p[0]+v[0]*arrow_len), int(p[1]+v[1]*arrow_len)]
+    color = (color[2], color[1], color[0]) # rgb --> bgr
     # find drawable region
-    if stop_p[0] > w: stop_p[0] = int(start_p[0]+v[0]*(w-start_p[0]-5))
-    if stop_p[1] > h: stop_p[1] = int(start_p[1]+v[1]*(h-start_p[1]-5))
-    if stop_p[0] < 0: stop_p[0] = int(start_p[0]+v[0]*(start_p[0]+5))
-    if stop_p[1] < 0: stop_p[1] = int(start_p[1]+v[1]*(start_p[1]+5))
-    drawn = cv2.arrowedLine(img, start_p,stop_p, color_bgr, arrow_thickness)
+    h, w, _ = img.shape
+    if stop_p[0] > w: stop_p[0] = int(p[0]+v[0]*(w-p[0]-5))
+    if stop_p[1] > h: stop_p[1] = int(p[1]+v[1]*(h-p[1]-5))
+    if stop_p[0] < 0: stop_p[0] = int(p[0]+v[0]*(p[0]+5))
+    if stop_p[1] < 0: stop_p[1] = int(p[1]+v[1]*(p[1]+5))
+    drawn = cv2.arrowedLine(img, p, stop_p, color, arrow_thickness)
     return drawn
+
+# def draw_vector(img, start_p, v, arrow_len=None, arrow_thickness=2, color=(0,255,255)):
+#     """
+#     drag_v: 2d normalizaed vector
+#     color: (r,g,b)
+#     """
+#     h, w, _ = img.shape
+#     if arrow_len == None: arrow_len = int(h/10)
+
+#     start_p = [int(start_p[0]), int(start_p[1])]
+#     stop_p = [int(start_p[0]+v[0]*arrow_len), int(start_p[1]+v[1]*arrow_len)]
+#     color_bgr = (color[2], color[1], color[0]) # rgb --> bgr
+#     # find drawable region
+#     if stop_p[0] > w: stop_p[0] = int(start_p[0]+v[0]*(w-start_p[0]-5))
+#     if stop_p[1] > h: stop_p[1] = int(start_p[1]+v[1]*(h-start_p[1]-5))
+#     if stop_p[0] < 0: stop_p[0] = int(start_p[0]+v[0]*(start_p[0]+5))
+#     if stop_p[1] < 0: stop_p[1] = int(start_p[1]+v[1]*(start_p[1]+5))
+#     drawn = cv2.arrowedLine(img, start_p,stop_p, color_bgr, arrow_thickness)
+#     return drawn
 
 def draw_vectors_bundle(img, start_p, scores=None, scores_thre=0.4):
-    if scores == None: 
+    if scores is None: 
         itvl = 16
         scores = list(range(itvl))
     else: 
@@ -269,13 +270,17 @@ def draw_vectors_bundle(img, start_p, scores=None, scores_thre=0.4):
     top_r_index = sorted(range(len(scores)), key=lambda i: scores[i])[-1]
     for r, s in enumerate(scores):
         if s > scores_thre: # success
-            draw_vector(img, start_p, direction2vector(r*360/itvl), arrow_thickness=1,color=(0,255,0))
+            draw_vector(img, start_p, angle2vector(r*360/itvl), arrow_thickness=1,color=(0,255,0))
             # print("success: ", r*360/itvl, scores.index(s))
         else: # failure
-            draw_vector(img, start_p, direction2vector(r*360/itvl), arrow_thickness=1,color=(255,0,0))
+            draw_vector(img, start_p, angle2vector(r*360/itvl), arrow_thickness=1,color=(255,0,0))
             # print("fail: ",r*360/itvl, scores.index(s))
     top_r = top_r_index*360/itvl
-    top_v = direction2vector(top_r)
+    top_v = angle2vector(top_r)
+
+    if len(scores) == 2 and (np.unique(scores) == [0,1]).all(): 
+        return img
+    
     if scores[top_r_index] > scores_thre:
         draw_vector(img, start_p, top_v, arrow_thickness=2,color=(0,255,0))
     else:

@@ -8,24 +8,26 @@ train:
   use_cuda: True
   img_height: 512
   img_width: 512
-  batch_size: 12 
+  batch_size: 5 
   learning_rate: 0.0005
   momentum: 0.9
   weight_decay: 0.0001
   num_workers: 4
   test_ratio: 0.10
 
-  save_folder: try_new_sepnet_using_u_resnet
+  dataset: SepDataAllPullVector
+  save_folder: try_sepnet_vectory_new_dataset
 
 infer:
-  infer_type: pick
+  infer_type: sep
   mode: test
   use_cuda: True
   batch_size: 1
   img_height: 512
   img_width: 512
-  pick_ckpt_folder: [try0, model_epoch_19.pth]
-  # pick_ckpt_folder: [try8,model_epoch_10.pth]
+  # pick_ckpt_folder: [try0, model_epoch_19.pth]
+  pick_ckpt_folder: [try8,model_epoch_8.pth]
   # pick_ckpt_folder: [try_retrain_picknet_unet, model_epoch_25.pth]
-  sepp_ckpt_folder: [try_38,model_epoch_4.pth]
+  # sepp_ckpt_folder: [try_38,model_epoch_4.pth]
+  sepp_ckpt_folder: [try_new_sepnet_position,model_epoch_5.pth]
   sepd_ckpt_folder: [try_new_res,model_epoch_12.pth]

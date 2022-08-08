@@ -57,7 +57,7 @@ if __name__ == "__main__":
     df = pd.read_csv(log_path)
     # df.insert(0, "epoch", list(range(100)), True)
     # print(df)
-    df = df[df['epoch'] <= 59]
+    # df = df[df['epoch'] <= 59]
 
     sns.lineplot(x="epoch", y="train_loss", data=df, label="Train Loss", color=colors[0], linewidth=2)
     sns.lineplot(x="epoch", y="test_loss", data=df,  label="Test Loss", color=colors[2], linewidth=2)

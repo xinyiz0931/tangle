@@ -10,8 +10,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tangle.utils import *
-from tangle import PickNet, SepPositionNet, SepDirectionNet
-from tangle import PickDataset, SepDataset
+from tangle import PickNet, SepNetP, SepNetD, SepNetD_Multi
+from tangle import PickDataset, SepDataset, SepMultiDataset
 
 class Trainer(object):
     def __init__(self, config):
@@ -23,7 +23,6 @@ class Trainer(object):
         self.use_cuda = config.use_cuda
         
         self.out_dir = config.save_dir
-        print(config.save_dir)
         self.timestamp_start = datetime.datetime.now()
 
         self.train_flag = True
@@ -47,7 +46,7 @@ class Trainer(object):
             
         elif self.net_type == 'sep_pos':
 
-            self.model = SepPositionNet(out_channels=2)
+            self.model = SepNetP(out_channels=2)
 
             self.criterion = torch.nn.BCELoss()
             self.optim = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate, 
@@ -56,20 +55,18 @@ class Trainer(object):
             test_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=test_inds)
 
         elif self.net_type == 'sep_dir':
-            from tangle.model import SepNetD
-            from tangle.dataset import SepNetDDataset
-            self.model = SepNetD(in_channels=5, backbone="conv")
-            # self.model = SepDirectionNet(in_channels=5, backbone='conv')
-            # self.criterion = nn.CrossEntropyLoss()
-            self.criterion = torch.nn.MSELoss()
-            self.optim = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate, 
+            self.model = SepNetD(in_channels=5, backbone="resnet")
+            # self.model = SepNetD_Multi(in_channels=5, backbone="resnet")
+            self.criterion = nn.CrossEntropyLoss()
+            # self.criterion = torch.nn.MSELoss()
+            # self.optim = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate, 
                         #  weight_decay=config.weight_decay)
-            # self.optim = torch.optim.SGD(self.model.parameters(), lr=config.learning_rate, 
+            self.optim = torch.optim.SGD(self.model.parameters(), lr=config.learning_rate, 
                          weight_decay=config.weight_decay)
-            # train_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=train_inds)
-            # test_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=test_inds)
-            train_dataset = SepNetDDataset(img_h, img_w, config.data_dir, data_inds=train_inds)
-            test_dataset = SepNetDDataset(img_h, img_w, config.data_dir, data_inds=test_inds)
+            train_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=train_inds)
+            test_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=test_inds)
+            # train_dataset = SepMultiDataset(img_h, img_w, config.data_dir, data_inds=train_inds)
+            # test_dataset = SepMultiDataset(img_h, img_w, config.data_dir, data_inds=test_inds)
 
         else:
             print('No such model type! Select from pick/sep_pos/sep_dir ... ')
@@ -112,13 +109,12 @@ class Trainer(object):
             loss = self.criterion(gauss_pred, gauss_gt)
 
         elif self.net_type == 'sep_dir': 
-            # img, direction, lbl_gt = sample_batched
-            # lbl_pred = self.model.forward(img.float(), direction.float())
-            # loss = self.criterion(lbl_pred, lbl_gt.long())
-            img, lbl_gt = sample_batched
-            lbl_pred = self.model.forward(img.float())
-            logging.debug(f"pred: {lbl_pred.shape}, gt: {lbl_gt.shape}")
-            loss = self.criterion(lbl_pred, lbl_gt.float())
+            img, direction, lbl_gt = sample_batched
+            lbl_pred = self.model.forward((img.float(), direction.float()))
+            loss = self.criterion(lbl_pred, lbl_gt.long())
+            # img, lbl_gt = sample_batched
+            # lbl_pred = self.model.forward(img.float())
+            # loss = self.criterion(lbl_pred, lbl_gt.float())
 
         elif self.net_type == 'test':
             inputs, labels = sample_batched

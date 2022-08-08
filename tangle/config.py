@@ -47,17 +47,19 @@ class Config(object):
         if self.config_type == "train":
             self.save_dir = os.path.join(
                 root_dir, "Checkpoint", self.save_folder)
-            if self.net_type == "pick":
-                self.data_dir = os.path.join(
-                    root_dir, "Dataset", "picknet", "train")
+            self.data_dir = os.path.join(root_dir, "Dataset", self.dataset)
+            # if self.net_type == "pick":
+            #     self.data_dir = os.path.join(
+            #         root_dir, "Dataset", "picknet", "train")
 
-            elif "sep" in self.net_type:
-                # self.data_dir = os.path.join(
-                #     root_dir, "Dataset", "sepnet", "train")
-                self.data_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\sepnet\\sr"
+            # elif "sep" in self.net_type:
+            #     # self.data_dir = os.path.join(
+            #     #     root_dir, "Dataset", "sepnet", "train")
+            #     self.data_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\sepnet\\sr"
+            #     self.data_dir = os.path.join(root_dir, "Dataset", self.config.data)
 
-            else:
-                print("Wrong net type! Select from pick/sep_pos/sep_dir ...")
+            # else:
+            #     print("Wrong net type! Select from pick/sep_pos/sep_dir ...")
 
         elif self.config_type == "infer":
             self.pick_ckpt = os.path.join(
