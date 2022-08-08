@@ -147,9 +147,14 @@ class Inference(object):
                 # h = self.picknet(img_t)["out"][0]
                 h = self.picknet(img_t)[0]
                 h = h.detach().cpu().numpy()
+                _s = 25
+                h_pick = cv2.rectangle(h[0],(0,0),(self.img_w, self.img_h),(0,0,0),_s*2)
+                h_sep = cv2.rectangle(h[1],(0,0),(self.img_w, self.img_h),(0,0,0),_s*2)
+                pick_y, pick_x = np.unravel_index(h_pick.argmax(), h_pick.shape)
+                sep_y, sep_x = np.unravel_index(h_sep.argmax(), h_sep.shape)
 
-                pick_y, pick_x = np.unravel_index(h[0].argmax(), h[0].shape)
-                sep_y, sep_x = np.unravel_index(h[1].argmax(), h[1].shape)
+                # pick_y, pick_x = np.unravel_index(h[0].argmax(), h[0].shape)
+                # sep_y, sep_x = np.unravel_index(h[1].argmax(), h[1].shape)
 
                 pick_sep_p.append([[pick_x, pick_y], [sep_x, sep_y]])
                 scores.append([h[0].max(), h[1].max()])
