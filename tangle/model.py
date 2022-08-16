@@ -7,7 +7,6 @@ import os
 import torch
 import torch.nn as nn
 import torchvision
-# from tangle.model_parts import resnet50, resnet101,resnet152
 from tangle.model_parts import Bridge, UpBlock, MLP, Up, Down, Conv
 
 class PickNet(nn.Module):
@@ -142,7 +141,8 @@ class SepNetD(nn.Module):
 
         if backbone =='resnet':
             from torchvision.models import resnet50, resnet101, resnet152
-            self.resnet = resnet101(pretrained=True)
+            # from tangle.model_parts import resnet50, resnet101,resnet152
+            self.resnet = resnet50(pretrained=True)
             self.resnet.conv1 = nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3,bias=False)
             self.decoder = MLP(self.resnet.fc.out_features + action_feature_dim, 2 * output_dim, [])
             # modules = list(self.resnet.children())[:-1]      # delete the last fc layer.
@@ -248,16 +248,19 @@ if __name__ == '__main__':
     # ----------------------- SepNet-P ---------------------------- 
     model = SepNetP(out_channels=2)
     out = model.forward(inp_img3)
-    print(f"SepPositionNet: ", inp_img3.shape, out.shape)
+    print("SepNet-P: ", inp_img3.shape, "=>", out.shape)
     
 
     # ----------------------- SepNet-D ---------------------------- 
     # ckpt = "C:\\Users\\xinyi\\Documents\\Checkpoint\\try_new_sepnet_using_all_conv_mse\\model_epoch_0.pth"
-    # ckpt = "C:\\Users\\xinyi\\Documents\\Checkpoint\\try_new_res\\model_epoch_0.pth"
+    
     model = SepNetD(in_channels=5, backbone="resnet")
-    # model.load_state_dict(torch.load(ckpt))
     out = model.forward((inp_img5, inp_direction))
-    print(inp_img5.shape, inp_direction.shape, "=>", out.shape)
+    print("SepNet-D: ", inp_img5.shape, inp_direction.shape, "=>", out.shape)
+    from tangle.config import Config
+    config = Config(config_type="infer")
+    ckpt = config.sepd_ckpt
+    model.load_state_dict(torch.load(ckpt))
      
     # ----------------------- SepNet-D Multi ---------------------------- 
     # model = SepNetD_Multi(in_channels=5, backbone="conv")

@@ -22,6 +22,7 @@ Otherwise, create a dictionary and use `cfg = Config(config_type="train", config
 """
 import os
 import yaml
+import platform
 
 class Config(object):
     def __init__(self, config_type, config_data=None):
@@ -36,8 +37,10 @@ class Config(object):
 
         else:
             data = config_data
-
-        root_dir = data["root_dir"]
+        if platform.system() == "Linux":
+            root_dir = data["root_dir_linux"]
+        elif platform.system() == "Windows":
+            root_dir = data["root_dir_win"]
 
         try:
             self.config = data[self.config_type]
@@ -48,18 +51,6 @@ class Config(object):
             self.save_dir = os.path.join(
                 root_dir, "Checkpoint", self.save_folder)
             self.data_dir = os.path.join(root_dir, "Dataset", self.dataset)
-            # if self.net_type == "pick":
-            #     self.data_dir = os.path.join(
-            #         root_dir, "Dataset", "picknet", "train")
-
-            # elif "sep" in self.net_type:
-            #     # self.data_dir = os.path.join(
-            #     #     root_dir, "Dataset", "sepnet", "train")
-            #     self.data_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\sepnet\\sr"
-            #     self.data_dir = os.path.join(root_dir, "Dataset", self.config.data)
-
-            # else:
-            #     print("Wrong net type! Select from pick/sep_pos/sep_dir ...")
 
         elif self.config_type == "infer":
             self.pick_ckpt = os.path.join(

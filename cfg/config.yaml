@@ -1,6 +1,5 @@
-# root_dir: '/home/hlab/Documents'
-# root_dir: 'D:'
-root_dir: 'C:\\Users\\xinyi\\Documents'
+root_dir_win: C:\\Users\\xinyi\\Documents
+root_dir_linux: /home/hlab/Documents
 
 train:
   net_type: sep_dir
@@ -19,11 +18,11 @@ train:
   save_folder: try_sepnet_vector_eight
 
 infer:
-  infer_type: sep
+  infer_type: sep_dir
   mode: test
   use_cuda: True
   batch_size: 1
-  img_height: 512
+  img_height: 500
   img_width: 512
   # pick_ckpt_folder: [try0, model_epoch_19.pth]
   pick_ckpt_folder: [try8,model_epoch_8.pth]
