@@ -140,9 +140,9 @@ class SepNetD(nn.Module):
             self.decoder = MLP(image_feature_dim + action_feature_dim, 2 * output_dim, [1024, 1024, 1024]) # 2 classes
 
         if backbone =='resnet':
-            from torchvision.models import resnet50, resnet101, resnet152
-            # from tangle.model_parts import resnet50, resnet101,resnet152
-            self.resnet = resnet50(pretrained=True)
+            # from torchvision.models import resnet50, resnet101, resnet152
+            from tangle.model_parts import resnet50, resnet101,resnet152
+            self.resnet = resnet101(pretrained=True)
             self.resnet.conv1 = nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3,bias=False)
             self.decoder = MLP(self.resnet.fc.out_features + action_feature_dim, 2 * output_dim, [])
             # modules = list(self.resnet.children())[:-1]      # delete the last fc layer.
@@ -232,18 +232,18 @@ if __name__ == '__main__':
     # root_dir = "C:\\Users\\xinyi\\Documents"
     # model_ckpt = os.path.join(root_dir, "Checkpoints", "try_SR_", "model_epoch_7.pth")
     batch_size = 1
-    inp_img3 = torch.rand((batch_size, 3, 500, 500))
+    inp_img3 = torch.rand((batch_size, 3, 512, 512))
     inp_img4 = torch.rand((batch_size, 4, 500, 500))
     inp_img5 = torch.rand((batch_size, 5, 500, 500))
     inp_direction = torch.rand((batch_size,2))
 
     # ----------------------- PickNet ---------------------------- 
-    # model = PickNet(model_type='fcn', out_channels=2)
-    # model = PickNet(model_type='unet', out_channels=2)
-    # # model = torch.hub.load("pytorch/vision:v0.10.0", "fcn_resnet50", pretrained=True)
-    # # model.load_state_dict(torch.load(model_ckpt))
-    # out = model.forward(inp_img3)
-    # print(f"PickNet: ", out.shape)
+    model = PickNet(model_type='fcn', out_channels=2)
+    model = PickNet(model_type='unet', out_channels=2)
+    # model = torch.hub.load("pytorch/vision:v0.10.0", "fcn_resnet50", pretrained=True)
+    # model.load_state_dict(torch.load(model_ckpt))
+    out = model.forward(inp_img3)
+    print(f"PickNet: ", out.shape)
 
     # ----------------------- SepNet-P ---------------------------- 
     model = SepNetP(out_channels=2)
@@ -257,10 +257,8 @@ if __name__ == '__main__':
     model = SepNetD(in_channels=5, backbone="resnet")
     out = model.forward((inp_img5, inp_direction))
     print("SepNet-D: ", inp_img5.shape, inp_direction.shape, "=>", out.shape)
-    from tangle.config import Config
-    config = Config(config_type="infer")
-    ckpt = config.sepd_ckpt
-    model.load_state_dict(torch.load(ckpt))
+
+    # model.load_state_dict(torch.load(ckpt))
      
     # ----------------------- SepNet-D Multi ---------------------------- 
     # model = SepNetD_Multi(in_channels=5, backbone="conv")

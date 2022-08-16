@@ -47,7 +47,7 @@ class Inference(object):
                 self.sepposnet = SepNetP(out_channels=2)
                 self.sepdirnet = SepNetD(in_channels=5, backbone="resnet")
                 
-                self.sepdirnet_m = SepNetD_Multi(in_channels=5, backbone="resnet")
+                # self.sepdirnet_m = SepNetD_Multi(in_channels=5, backbone="resnet")
                 models[1] = True
                 models[2] = True
         
