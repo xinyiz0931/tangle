@@ -1,12 +1,10 @@
 import argparse
-from email import parser
 import os
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from yaml import parse
 
 sns.set()
 
@@ -14,16 +12,22 @@ sns.set()
 if __name__ == "__main__":
     
     # read log file
-    root_dir = "C:\\Users\\xinyi\\Documents"
     # root_dir = "D:\\"
-    root_dir = "/home/hlab/Documents"
     # ckpt_path = os.path.join(root_dir, "Checkpoint", "try_retrain_picknet_unet")
-    ckpt_path = os.path.join(root_dir, "Checkpoint", "try_38")
+    # ckpt_path = os.path.join(root_dir, "Checkpoint", "try_38")
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dir', '-d', default=ckpt_path, help='path to checkchpoint')
-    args = parser.parse_args()
+    parser.add_argument('--dir', '-d', help='path to checkchpoint')
+    # parser.add_argument('--dir', '-d', default=ckpt_path, help='path to checkchpoint')
     
-    log_path = os.path.join(args.dir, 'log.csv')
+    args = parser.parse_args()
+
+    if args.dir is not None:
+        log_dir = args.dir
+    else:
+        from tangle.config import Config
+        config = Config(config_type="train")
+        log_dir = config.save_dir
+    log_path = os.path.join(log_dir, 'log.csv')
 
     # create plot design
     colors = [[ 78.0/255.0,121.0/255.0,167.0/255.0], # 0_blue
@@ -67,7 +71,7 @@ if __name__ == "__main__":
     frame.set_facecolor('white')
     
     plt.tight_layout()
-    plt.savefig(os.path.join(args.dir, 'loss.png'))
+    plt.savefig(os.path.join(log_dir, 'loss.png'))
     plt.show()
     # create figure
     # ax = plt.axes()

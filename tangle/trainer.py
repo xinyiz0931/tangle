@@ -21,7 +21,7 @@ class Trainer(object):
         self.net_type = config.net_type
         self.epochs = config.epochs
         self.use_cuda = config.use_cuda
-        
+        self.backbone = config.backbone 
         self.out_dir = config.save_dir
         self.timestamp_start = datetime.datetime.now()
 
@@ -45,7 +45,7 @@ class Trainer(object):
             test_dataset = PickDataset(img_h, img_w, config.data_dir, test_inds)
             
         elif self.net_type == 'sep_pos':
-
+            
             self.model = SepNetP(out_channels=2)
 
             self.criterion = torch.nn.BCELoss()
@@ -55,7 +55,7 @@ class Trainer(object):
             test_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=test_inds)
 
         elif self.net_type == 'sep_dir':
-            self.model = SepNetD(in_channels=5, backbone="resnet")
+            self.model = SepNetD(in_channels=5, backbone=self.backbone)
             # self.model = SepNetD_Multi(in_channels=5, backbone="resnet")
             self.criterion = nn.CrossEntropyLoss()
             # self.criterion = torch.nn.MSELoss()
@@ -92,7 +92,7 @@ class Trainer(object):
         with open(os.path.join(self.out_dir, 'log.csv'), 'w') as f:
             f.write(','.join(self.log_headers) + '\n')
         config.record(os.path.join(self.out_dir, 'config.txt'))
-        
+
     def forward(self, sample_batched):
 
         sample_batched = [d.to(self.device) for d in sample_batched]

@@ -98,16 +98,18 @@ class Config(object):
             raise AttributeError
 
     def display(self):
+        print("-"*75)
         for a in self.config.keys():
             print("{:30} {}".format(a, self.config[a]))
         for a in dir(self):
-
             if not a.startswith("__") and not callable(getattr(self, a)) and not isinstance(getattr(self, a), dict):
                 print("{:30} {}".format(a, getattr(self, a)))
-        print("\n")
+        print("-"*75)
 
     def record(self, log_path):
         with open(log_path, "w") as f:
+            for a in self.config.keys():
+                print("{:30} {}".format(a, self.config[a]), file=f)
             for a in dir(self):
                 if not a.startswith("__") and not callable(getattr(self, a)) and not isinstance(getattr(self, a), dict):
                     print("{:30} {}".format(a, getattr(self, a)), file=f)

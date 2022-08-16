@@ -3,6 +3,7 @@ root_dir_linux: /home/hlab/Documents
 
 train:
   net_type: sep_dir
+  backbone: resnet50
   epochs: 100
   use_cuda: True
   img_height: 512
@@ -15,10 +16,10 @@ train:
   test_ratio: 0.10
 
   dataset: SepDataAllPullVectorEight
-  save_folder: try_sepnet_vector_eight
+  save_folder: try_sepnet_d_vector_eight
 
 infer:
-  infer_type: pick 
+  infer_type: sep_dir 
   mode: test
   use_cuda: True
   batch_size: 1
