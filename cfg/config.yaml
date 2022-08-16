@@ -6,8 +6,8 @@ train:
   net_type: sep_dir
   epochs: 100
   use_cuda: True
-  img_height: 512
-  img_width: 512
+  img_height: 500
+  img_width: 500
   batch_size: 5 
   learning_rate: 0.0005
   momentum: 0.9
@@ -15,8 +15,8 @@ train:
   num_workers: 4
   test_ratio: 0.10
 
-  dataset: SepDataAllPullVector
-  save_folder: try_sepnet_vectory_new_dataset
+  dataset: SepDataAllPullVectorEight
+  save_folder: try_sepnet_vector_eight
 
 infer:
   infer_type: sep

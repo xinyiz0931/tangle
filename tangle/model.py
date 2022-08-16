@@ -7,7 +7,7 @@ import os
 import torch
 import torch.nn as nn
 import torchvision
-from tangle.model_parts import resnet50, resnet101,resnet152
+# from tangle.model_parts import resnet50, resnet101,resnet152
 from tangle.model_parts import Bridge, UpBlock, MLP, Up, Down, Conv
 
 class PickNet(nn.Module):
@@ -90,6 +90,7 @@ class SepNetP(nn.Module):
         self.out_channels = out_channels
         self.img_height = img_height
         self.img_width = img_width
+        from tangle.model_parts import resnet50
         resnet = resnet50(fully_conv=True,
                                        pretrained=True,
                                        output_stride=8,
@@ -123,11 +124,10 @@ class SepNetD(nn.Module):
     def __init__(self,  in_channels=5, backbone='conv'):
         super().__init__()
         image_feature_dim = 256
-        action_feature_dim = 128
+        action_feature_dim = 256
         output_dim = 1
         self.backbone = backbone
         self.action_encoder = MLP(2, action_feature_dim, [action_feature_dim, action_feature_dim])
-        self.decoder = MLP(image_feature_dim + action_feature_dim, 2 * output_dim, [1024, 1024, 1024]) # 2 classes
         
         if backbone == 'conv':
             self.image_encoder_1 = Conv(in_channels, 32)
@@ -138,14 +138,17 @@ class SepNetD(nn.Module):
             self.image_encoder_6 = Down(512, 512)
             self.image_encoder_7 = Down(512, 512)
             self.image_feature_extractor = MLP(512*8*8, image_feature_dim, [image_feature_dim])
+            self.decoder = MLP(image_feature_dim + action_feature_dim, 2 * output_dim, [1024, 1024, 1024]) # 2 classes
 
         if backbone =='resnet':
+            from torchvision.models import resnet50, resnet101, resnet152
             self.resnet = resnet101(pretrained=True)
             self.resnet.conv1 = nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3,bias=False)
-            modules = list(self.resnet.children())[:-1]      # delete the last fc layer.
+            self.decoder = MLP(self.resnet.fc.out_features + action_feature_dim, 2 * output_dim, [])
+            # modules = list(self.resnet.children())[:-1]      # delete the last fc layer.
             # modules.append(nn.Dropout(0.5))
-            self.resnet = nn.Sequential(*modules)
-            self.image_feature_extractor = MLP(2048*2*2, image_feature_dim, [image_feature_dim])
+            # self.resnet = nn.Sequential(*modules)
+            # self.image_feature_extractor = MLP(2048*2*2, image_feature_dim, [image_feature_dim])
             # self.linear = nn.Linear(2048, out_features=1)
     
     def forward(self, x):
@@ -166,12 +169,12 @@ class SepNetD(nn.Module):
             feature = self.image_feature_extractor(embedding)
         
         if self.backbone == 'resnet':
-            x1 = self.resnet(observation)
-            embedding = x1
-            feature = self.image_feature_extractor(embedding)
+            # x1 = self.resnet(observation)
+            # embedding = x1
+            # feature = self.image_feature_extractor(embedding)
+            feature = self.resnet(observation)
             
         direction_features = self.action_encoder(directions)
-
         feature_input = torch.cat([feature, direction_features], dim=1)
         output = self.decoder(feature_input)
         
@@ -229,9 +232,9 @@ if __name__ == '__main__':
     # root_dir = "C:\\Users\\xinyi\\Documents"
     # model_ckpt = os.path.join(root_dir, "Checkpoints", "try_SR_", "model_epoch_7.pth")
     batch_size = 1
-    inp_img3 = torch.rand((batch_size, 3, 512, 512))
-    inp_img4 = torch.rand((batch_size, 4, 512, 512))
-    inp_img5 = torch.rand((batch_size, 5, 512, 512))
+    inp_img3 = torch.rand((batch_size, 3, 500, 500))
+    inp_img4 = torch.rand((batch_size, 4, 500, 500))
+    inp_img5 = torch.rand((batch_size, 5, 500, 500))
     inp_direction = torch.rand((batch_size,2))
 
     # ----------------------- PickNet ---------------------------- 

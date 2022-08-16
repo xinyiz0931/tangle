@@ -141,7 +141,10 @@ class Inference(object):
                 else: self.data_list = self.get_image_list(self.dataset_dir)
 
             for d in self.data_list:
-                img = cv2.resize(cv2.imread(d), (self.img_w, self.img_h))
+                src_img = cv2.imread(d)
+                src_h, src_w, _ = src_img.shape
+                img = cv2.resize(src_img, (self.img_w, self.img_h))
+                
                 img_t = self.transform(img)
                 img_t = torch.unsqueeze(img_t, 0).cuda() if self.use_cuda else torch.unsqueeze(img_t, 0)
                 # h = self.picknet(img_t)["out"][0]
@@ -161,6 +164,7 @@ class Inference(object):
                 if h[0].max() > h[1].max(): pick_or_sep.append(0)
                 else: pick_or_sep.append(1)
                 outputs.append(h) # 2xHxW
+                
         elif self.mode == "val":
             for sample_batched in self.val_loader:
                 sample_batched = [Variable(d.cuda() if self.use_cuda else d) for d in sample_batched]

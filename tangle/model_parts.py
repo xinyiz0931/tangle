@@ -397,7 +397,6 @@ class ResNet(nn.Module):
         
         self.avgpool = nn.AvgPool2d(7)
         self.fc = nn.Linear(512 * block.expansion, num_classes)
-        
         if self.fully_conv:
             self.avgpool = nn.AvgPool2d(7, padding=3, stride=1)
             self.fc = nn.Linear(512 * block.expansion, num_classes)
@@ -461,7 +460,6 @@ class ResNet(nn.Module):
         
         if not self.fully_conv:
             x = x.view(x.size(0), -1)
-            
         x = self.fc(x)
 
         return x

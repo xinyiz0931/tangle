@@ -223,7 +223,7 @@ def angle2vector(r, point_to='right'):
 #     drag_v = np.array(drag_v) / np.linalg.norm(np.array(drag_v)) # 2d norm
 #     return drag_v
 
-def draw_vector(img, p, v, arrow_len=None, arrow_thickness=2, color=(0,255,255)):
+def draw_vector(img, p, v, arrow_len=None, arrow_thickness=2, color=(0,255,0)):
     """
     drag_v: 2d normalizaed vector
     """
@@ -260,9 +260,8 @@ def draw_vector(img, p, v, arrow_len=None, arrow_thickness=2, color=(0,255,255))
 #     drawn = cv2.arrowedLine(img, start_p,stop_p, color_bgr, arrow_thickness)
 #     return drawn
 
-def draw_vectors_bundle(img, start_p, scores=None, scores_thre=0.4):
+def draw_vectors_bundle(img, start_p, scores=None, scores_thre=0.4, itvl=16):
     if scores is None: 
-        itvl = 16
         scores = list(range(itvl))
     else: 
         itvl = len(scores)
@@ -293,7 +292,7 @@ def draw_vectors_bundle(img, start_p, scores=None, scores_thre=0.4):
 def sample_directions(itvl=16):
     directions = []
     for r in range(itvl):
-        directions.append(direction2vector(r*360/itvl))
+        directions.append(angle2vector(r*360/itvl))
     return directions
 # def transfer_data(src_dir, dest_dir, option, success):
 #     """
