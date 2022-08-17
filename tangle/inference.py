@@ -41,11 +41,11 @@ class Inference(object):
                 models[1] = True
 
             elif self.infer_type == "sep_dir":
-                self.sepdirnet = SepNetD(in_channels=5, backbone="resnet")
+                self.sepdirnet = SepNetD(in_channels=5, backbone="resnet50")
                 models[2] = True
             else:
                 self.sepposnet = SepNetP(out_channels=2)
-                self.sepdirnet = SepNetD(in_channels=5, backbone="resnet")
+                self.sepdirnet = SepNetD(in_channels=5, backbone="resnet50")
                 
                 # self.sepdirnet_m = SepNetD_Multi(in_channels=5, backbone="resnet")
                 models[1] = True
@@ -72,7 +72,7 @@ class Inference(object):
                 self.sepdirnet.load_state_dict(torch.load(config.sepd_ckpt))
             else:
                 self.sepdirnet.load_state_dict(torch.load(config.sepd_ckpt,map_location=torch.device("cpu")))
-            
+        self.exist_models = models    
         # if validation mode, it"s necessary to load the dataset
         if self.mode == "val":
             # inds = random_inds(2, 100)
@@ -94,7 +94,7 @@ class Inference(object):
         def on_click(event,x,y,flags,param):
             if event == cv2.EVENT_LBUTTONDOWN:
                 cv2.circle(drawn,(x,y),5,(0,255,0),-1)
-                notice_print(f"{x},{y}")
+                print(f"[*] {x},{y}")
                 grasps.append([x,y])
 
         cv2.namedWindow("click twice to select pull and hold")
@@ -121,16 +121,23 @@ class Inference(object):
             if data_dir.split(".")[-1] == "png": 
                 data_list.append(data_dir)
         else:
-            warning_print("Invalid! Data path does not exist ")
+            print("[!] Invalid! Data path does not exist ")
         return data_list
 
-    def infer_pick(self, data_dir=None):
+    def infer_pick(self, data_dir=None, _s=0):
+        """Use PickNet to infer N samples
+
+        Args:
+            data_dir (str, optional): path to one file. Defaults to None.
+            _s (int, optional): bounding size for collision avoiding. Defaults to 0.
+
+        Returns:
+            pick_or_sep (list): N x (0->pick/1->sep)
+            pick_sep_p (list): N x (2x2)
+            heatmaps (list) : N x (2xHxW)
         """
-        infer picknet: classify two maps: pick/sep maps
-        return: action_type: [0,1]
-                location: [[x1,y1]]
-        """
-        outputs = []
+
+        heatmaps = []
         pick_or_sep = []
         pick_sep_p = []
         scores = []
@@ -147,12 +154,15 @@ class Inference(object):
                 
                 img_t = self.transform(img)
                 img_t = torch.unsqueeze(img_t, 0).cuda() if self.use_cuda else torch.unsqueeze(img_t, 0)
-                # h = self.picknet(img_t)["out"][0]
                 h = self.picknet(img_t)[0]
                 h = h.detach().cpu().numpy()
-                _s = 25
-                h_pick = cv2.rectangle(h[0],(0,0),(self.img_w, self.img_h),(0,0,0),_s*2)
-                h_sep = cv2.rectangle(h[1],(0,0),(self.img_w, self.img_h),(0,0,0),_s*2)
+
+                h_pick = cv2.resize(h[0], (src_w, src_h))
+                h_sep = cv2.resize(h[1], (src_w, src_h))
+                
+                h_pick = cv2.rectangle(h_pick,(0,0),(src_w, src_h),(0,0,0),_s*2)
+                h_sep = cv2.rectangle(h_sep,(0,0),(src_w, src_h),(0,0,0),_s*2)
+                
                 pick_y, pick_x = np.unravel_index(h_pick.argmax(), h_pick.shape)
                 sep_y, sep_x = np.unravel_index(h_sep.argmax(), h_sep.shape)
 
@@ -163,7 +173,7 @@ class Inference(object):
                 scores.append([h[0].max(), h[1].max()])
                 if h[0].max() > h[1].max(): pick_or_sep.append(0)
                 else: pick_or_sep.append(1)
-                outputs.append(h) # 2xHxW
+                heatmaps.append([h_pick, h_sep]) # 2xHxW
                 
         elif self.mode == "val":
             for sample_batched in self.val_loader:
@@ -184,14 +194,19 @@ class Inference(object):
                     else: lbl_pred = 1
                     outputs.append([lbl_gt, lbl_pred])
 
-        return pick_or_sep, pick_sep_p, outputs 
+        return pick_or_sep, pick_sep_p, heatmaps 
 
     def infer_sep_pos(self, data_dir=None):
+        """Use SepNet-P to infer pull point and hold point for N sampels
+
+        Args:
+            data_dir (str, optional): path to one image. Defaults to None.
+
+        Returns:
+            pull_hold_p (list): N x (2x2) 
+            heatmaps (list): N x (2xHxW)
         """
-        no validation mode
-        infer sepnet-p: output two keypoints: hold, pull
-        """
-        points = [] # pull + hold
+        pull_hold_p = [] # pull + hold
         heatmaps = []
 
         if self.mode == "test":
@@ -200,7 +215,6 @@ class Inference(object):
             else: self.data_list = self.get_image_list(self.dataset_dir)
 
             for img_path in self.data_list:
-                print("[*] Infer: ", img_path)
                 src_img = cv2.imread(img_path)
                 src_h, src_w, _ = src_img.shape
                 
@@ -213,44 +227,25 @@ class Inference(object):
                 holdmap = cv2.resize(h[1], (src_w, src_h))
                 pull_y, pull_x = np.unravel_index(pullmap.argmax(), pullmap.shape)
                 hold_y, hold_x = np.unravel_index(holdmap.argmax(), holdmap.shape)
-                points.append([[pull_x, pull_y],[hold_x, hold_y]])
+                pull_hold_p.append([[pull_x, pull_y],[hold_x, hold_y]])
                 heatmaps.append([pullmap, holdmap])
             
-        return points, heatmaps
+        return pull_hold_p, heatmaps
 
-    def infer_sep_dir_multi(self, data_dir=None, grasps=None, itvl=16):
-        outputs = []
-        pull_hold_p = []
-        if self.mode == "test":
-            if data_dir != None: self.data_list = self.get_image_list(data_dir)
-            else: self.data_list = self.get_image_list(self.dataset_dir)
-            for i, d in enumerate(self.data_list):
-                img = cv2.resize(cv2.imread(d), (self.img_w, self.img_h))
-                if grasps == None: return
-                else: g_ = grasps[i]
-
-                if len(g_) != 2: return
-                else: pull_hold_p.append(g_)
-
-                heatmap = gauss_2d_batch(self.img_w, self.img_h, 8, g_)
-                img_t = torch.cat((self.transform(img), heatmap), 0)
-                img_t = torch.unsqueeze(img_t, 0).cuda() if self.use_cuda else torch.unsqueeze(img_t, 0)
-                score = []
-
-                lbl_pred= self.sepdirnet_m.forward(img_t.float())
-                print(lbl_pred)
-                lbl_pred = torch.nn.Softmax(dim=1)(lbl_pred)
-                print(lbl_pred)
-                lbl_pred = lbl_pred.detach().cpu().numpy()
-                score.append(lbl_pred.ravel()[1]) # only success possibility
-                
-                outputs.append(score)
     
-    def infer_sep_dir(self, data_dir=None, grasps=None, itvl=16):
+    def infer_sep_dir(self, data_dir=None, grasps=None, itvl=8):
+        """Use SepNet-D to infer scores of `itvl` directions for N samples
+
+        Args:
+            data_dir (str, optional): path to one image. Defaults to None.
+            grasps (list, optional): Nx(2x2), pull and hold points. Defaults to None.
+            itvl (int, optional): _description_. Defaults to 8.
+
+        Returns:
+            pull_hold_p (list): pull and hold points
+            scores (list): scores of `itvl` directions 
         """
-        infer picknet: check success/fail of the directions
-        """
-        outputs = [] # scores for all directions
+        scores = [] # scores for all directions
         pull_hold_p = []
         if self.mode == "test": 
             # if self.data_list == []: 
@@ -258,14 +253,24 @@ class Inference(object):
             else: self.data_list = self.get_image_list(self.dataset_dir)
             for i, d in enumerate(self.data_list):
 
-                img = cv2.resize(cv2.imread(d), (self.img_w, self.img_h))
+                src = cv2.imread(d)
+                src_h, src_w, _ = src.shape
+
+
                 # infer a single image
-                if grasps == None: g_ = self.get_grasps_for_sepnet(img)
+                if grasps == None: g_ = self.get_grasps_for_sepnet(src)
                 else: g_ = grasps[i]
                 
                 if len(g_) != 2: return
                 else: pull_hold_p.append(g_)
+
+                img = cv2.resize(src, (self.img_w, self.img_h))
+                g_ = np.asarray(g_) 
+                g_[:,0] = g_[:,0] * self.img_w / src_w
+                g_[:,1] = g_[:,1] * self.img_h / src_h
+
                 heatmap_no_hold = gauss_2d_batch(self.img_w, self.img_h, 8, np.array([g_[0]])) 
+                
                 heatmap = gauss_2d_batch(self.img_w, self.img_h, 8, g_)
                 img_t = torch.cat((self.transform(img), heatmap), 0)
                 img_t = torch.unsqueeze(img_t, 0).cuda() if self.use_cuda else torch.unsqueeze(img_t, 0)
@@ -279,7 +284,7 @@ class Inference(object):
                     lbl_pred = lbl_pred.detach().cpu().numpy()
                     score.append(lbl_pred.ravel()[1]) # only success possibility
                 
-                outputs.append(score)
+                scores.append(score)
                 # self.plot(d, scores, grasps)
             if grasps != None: pull_hold_p = grasps
 
@@ -298,9 +303,9 @@ class Inference(object):
                     lbl_gt = labels_gt[j]
                     if lbl_pred.argmax(dim=1)[0] == lbl_gt: num_success += 1
             
-            notice_print(f"Accuracy: {num_success}/{len(self.val_loader)}")
+            print(f"[*] Accuracy: {num_success}/{len(self.val_loader)}")
 
-        return pull_hold_p, outputs
+        return pull_hold_p, scores
 
     def plot(self, img_path, predictions, show=False, grasps=None, cmap=True, plot_type=None, save_dir=None):
         """
@@ -308,7 +313,6 @@ class Inference(object):
         """
         if plot_type == None: plot_type = self.infer_type
         img = cv2.imread(img_path)
-        
         splited = list(os.path.split(img_path))
         splited[-1] = "out_" + splited[-1]
         splited.insert(-1, "pred")
@@ -358,13 +362,13 @@ class Inference(object):
                 else: 
                     vis = cv2.cvtColor(vis, cv2.COLOR_GRAY2RGB)
                     points.append([pred_x, pred_y])
-            # ======= TEMP ========
-            _tmp_l = list(os.path.split(img_path))
-            _tmp_path = os.path.join("D:\\dataset\\sepnet\\train\\heatmaps", _tmp_l[-1])
-            vis = predictions[1]
-            vis = cv2.normalize(vis, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8) 
-            cv2.imwrite(_tmp_path, vis)
-            # =====================
+            # # ======= TEMP ========
+            # _tmp_l = list(os.path.split(img_path))
+            # _tmp_path = os.path.join("D:\\dataset\\sepnet\\train\\heatmaps", _tmp_l[-1])
+            # vis = predictions[1]
+            # vis = cv2.normalize(vis, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8) 
+            # cv2.imwrite(_tmp_path, vis)
+            # # =====================
              
             if cmap:
                 cv2.putText(overlays[0], "pull", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
@@ -382,8 +386,6 @@ class Inference(object):
             showing = cv2.circle(showing, pull_p,5,(0,255,0),-1)
             showing = cv2.circle(showing, hold_p,5,(0,255,0),-1)
             
-            notice_print(f"final score: {np.round(predictions, 3)}")
-        
         elif plot_type == "sep":
 
             [predictions_pos, predictions_dir] = predictions
@@ -394,7 +396,6 @@ class Inference(object):
             showing = cv2.circle(showing, pull_p,5,(0,255,0),-1)
             showing = cv2.circle(showing, hold_p,5,(0,255,0),-1)
             
-            notice_print(f"final score: {np.round(predictions_dir, 3)}")
             if cmap: 
                 points, overlays = [], []
                 for h in predictions_pos: 
@@ -406,7 +407,7 @@ class Inference(object):
                     overlays.append(overlay)
                 showing = cv2.hconcat([overlays[1], overlays[0], showing])
         
-        main_proc_print(f"save the result to {save_path}")
+        print(f"[*] Save the result to {save_path}")
 
         cv2.imwrite(save_path, showing)
 
@@ -416,61 +417,91 @@ class Inference(object):
             cv2.destroyAllWindows()
         return showing
 
-    def infer(self, cmap=True, data_dir=None, save_dir=None, save=True, infer_type=None):
+    def infer(self, cmap=True, data_dir=None, save=True, save_dir=None, infer_type=None):
+        """Infer use PickNet or SepNet
 
+        Args:
+            cmap (bool, optional): visualized heatmaps using color map or not. Defaults to True.
+            data_dir (str, optional): default to self.data_dir depending on infer_type test/val.
+            save (bool, optional): whether save the visualizaed heatmaps. Defaults to True.
+            save_dir (str, optional): where to save visualized heatmaps. Defaults to data_dir/preds/out_*.
+            infer_type (_type_, optional): loaded 'sep' => infer_type can be 'sep_pos' or 'sep_dir' 
+        Returns:
+            "pick"        : pick_or_sep, pick_sep_p, pn_scores
+            "sep_pos"     : pull_hold_p 
+            "sep_dir"     : pull_hold_p, snd_scores
+            "sep"         : pull_hold_p, snd_scores
+            "pick_sep_pos": pick_or_sep, pick_sep_p, pn_scores, pull_hold_p
+            "pick_sep"    : pick_or_sep, pick_sep_p, pn_scores, pull_hold_p, snd_scores 
+        """
         self.data_list = [] # ininitialize 
-        if infer_type is None: 
+        if infer_type is not None:
+            if "pick" in infer_type and not self.exist_models[0]:
+                return
+            if "sep" in infer_type and (not self.exist_models[1] or not self.exist_models[2]):
+                return
+            if "pos" in infer_type and not self.exist_models[1]:
+                return
+            if "dir" in infer_type and not self.exist_models[2]:
+                return
+        else: 
             infer_type = self.infer_type
+         
+        print(f"[*] Infer type: {infer_type}")
         if infer_type == "pick":
-            pick_or_sep, pick_sep_p, outputs = self.infer_pick(data_dir=data_dir)
+            # return three lists for N samples: 
+            # (1) cls = N x (0->pick/1->sep), (2) PickNet positions: p = N x (2x2)
+            pick_or_sep, pick_sep_p, pn_heatmaps = self.infer_pick(data_dir=data_dir)
             if self.mode == "val":
                 succ = 0
-                for o in outputs: 
+                for o in pn_heatmaps: 
                     if o[0] == o[1]: succ +=1 
-                print("Success rate: ", succ," / ", len(outputs))  
-                return [succ, len(outputs)]
+                print("Success rate: ", succ," / ", len(pn_heatmaps))  
+                return [succ, len(pn_heatmaps)]
             else:
-                scores = []
+                pn_scores = []
                 if save: 
-                    for d, o in zip(self.data_list, outputs):
-                        scores.append([o[0].max(), o[1].max()])
+                    for d, o in zip(self.data_list, pn_heatmaps):
+                        pn_scores.append([o[0].max(), o[1].max()])
                         self.plot(d, o, cmap=cmap, save_dir=save_dir, plot_type=infer_type)
-                return [pick_or_sep, pick_sep_p, scores]
+                return pick_or_sep, pick_sep_p, pn_scores
 
         elif infer_type == "sep_pos":
-            pull_hold_p, heatmaps = self.infer_sep_pos(data_dir=data_dir)
+            # return one listst for N sampels: 
+            # (1) SepNet-P positions: p = N x (2x2) 
+            pull_hold_p, snp_heatmaps = self.infer_sep_pos(data_dir=data_dir)
             if save: 
-                for d, h in zip(self.data_list, heatmaps):
+                for d, h in zip(self.data_list, snp_heatmaps):
                     self.plot(d, h, cmap=cmap, show=False, save_dir=save_dir, plot_type=infer_type)
             return pull_hold_p
 
         elif infer_type == "sep_dir":
-            pull_hold_p, scores = self.infer_sep_dir(data_dir=data_dir)
+            # return two lists for N samples: 
+            # (1) manually positions: p = N x (2x2), (2) scores = N x itvl_num
+            pull_hold_p, snd_scores = self.infer_sep_dir(data_dir=data_dir)
             if save: 
-                for d, s, p in zip(self.data_list, scores, pull_hold_p):
-                    self.plot(d, o, grasps=p, cmap=cmap, save_dir=save_dir, plot_type=infer_type)
-            return pull_hold_p
+                for d, s, p in zip(self.data_list, snd_scores, pull_hold_p):
+                    self.plot(d, s, grasps=p, cmap=cmap, save_dir=save_dir, plot_type=infer_type)
+            return pull_hold_p, snd_scores
 
         elif infer_type == "sep":
-            pull_hold_p, pos_heatmaps = self.infer_sep_pos(data_dir=data_dir)
-            
-            _, dir_scores = self.infer_sep_dir(data_dir=data_dir, grasps=pull_hold_p)
+            # return three lists for N samples
+            # (1) SepNet-P position: p = N x (2x2), (2) heatmaps = N x (2xHxW) (3) scores = N x itvl_num
+            pull_hold_p, snp_heatmaps = self.infer_sep_pos(data_dir=data_dir)
+            _, snd_scores = self.infer_sep_dir(data_dir=data_dir, grasps=pull_hold_p)
             if save:            
-                for d, po, do, p in zip(self.data_list, pos_heatmaps, dir_scores, pull_hold_p):
+                for d, po, do, p in zip(self.data_list, snp_heatmaps, snd_scores, pull_hold_p):
                     self.plot(d, [po, do], grasps=p, cmap=cmap, save_dir=save_dir, plot_type=infer_type)
-            return [pull_hold_p, dir_scores]
-        
-        # elif infer_type == "sep_multi":
-        #     pull_hold_p, outputs_pos = self.infer_sep_pos(data_dir=data_dir)
+            return pull_hold_p, snd_scores
 
-        #     _, output_dir = self.infer_sep_dir_multi(data_dir, grasps=pull_hold_p)
-
-        
         elif infer_type == "pick_sep_pos":
-            pick_or_sep, pick_sep_p, outputs_pick = self.infer_pick(data_dir=data_dir)
-            scores = []
-            for d, o_pick, l in zip(self.data_list, outputs_pick, pick_or_sep):
-                scores.append([o_pick[0].max(), o_pick[1].max()])
+            # return three lists for N samples:
+            # (1) cls = N x (0->pick/1->sep), (2) PickNet positions: p = N x (2x2) (3) PickNet scores = N x 2, 
+            # (4) SepNet-P position: p = N x (2x2)
+            pick_or_sep, pick_sep_p, pn_heatmaps = self.infer_pick(data_dir=data_dir)
+            pn_scores = []
+            for d, o_pick, l in zip(self.data_list, pn_heatmaps, pick_or_sep):
+                pn_scores.append([o_pick[0].max(), o_pick[1].max()])
                 if l == 1:
                     p, o_sepp  = self.infer_sep_pos(data_dir=d) 
                     pull_hold_p = p
@@ -478,24 +509,27 @@ class Inference(object):
                 else:
                     pull_hold_p = None
                     if save: self.plot(d, o_pick, cmap=cmap, plot_type="pick", save_dir=save_dir)
-            return [pick_or_sep, pick_sep_p, pull_hold_p, scores]
+            return pick_or_sep, pick_sep_p, pn_scores, pull_hold_p
 
         elif infer_type == "pick_sep":
-            pick_or_sep, pick_sep_p, outputs_pick = self.infer_pick(data_dir=data_dir)
-            scores = []
-            for d, o_pick, l in zip(self.data_list, outputs_pick, pick_or_sep):
-                scores.append([o_pick[0].max(), o_pick[1].max()])
+            # return four lists for N samples:
+            # (1) cls = N x (0->pick/1->sep), (2) PickNet positions: p = N x (2x2) (3) PickNet scores = N x 2, 
+            # (4) SepNet-P positions: p = N x (2x2), (5) SepNet-D scores = N x itvl_num
+            pick_or_sep, pick_sep_p, pn_heatmaps = self.infer_pick(data_dir=data_dir)
+            pn_scores = []
+            for d, o_pick, l in zip(self.data_list, pn_heatmaps, pick_or_sep):
+                pn_scores.append([o_pick[0].max(), o_pick[1].max()])
                 if l == 1:
                     p, o_sepp  = self.infer_sep_pos(data_dir=d) 
                     _, o_sepd = self.infer_sep_dir(data_dir=d, grasps=p)
                     pull_hold_p = p
-                    outputs_dir = o_sepd
+                    snd_scores = o_sepd
                     if save: self.plot(d, [o_sepp[0],o_sepd[0]], grasps=p[0], plot_type="sep", save_dir=save_dir)
                 else:
-                    pull_hold_p, outputs_dir = None, None
+                    pull_hold_p, snd_scores = None, None
                     if save: self.plot(d, o_pick, plot_type="pick", save_dir=save_dir)
 
-            return [pick_or_sep, pick_sep_p, pull_hold_p, scores, outputs_dir]
+            return pick_or_sep, pick_sep_p, pn_scores, pull_hold_p, snd_scores
 
         else: 
             print(f"Wrong infer type! ")
@@ -512,6 +546,7 @@ if __name__ == "__main__":
     # print(inference.get_image_list(folder))
     
     # res = inference.infer(data_dir=folder, infer_type="pick")
-    res = inference.infer(data_dir=folder, save_dir="/home/hlab/Desktop")
+    res = inference.infer(data_dir=folder, save_dir="/home/hlab/Desktop", infer_type="sep")
+    print(res)
     # res = inference.infer(data_dir=folder, save_dir="C:\\Users\\xinyi\\Desktop")
     # inference.infer(save_dir="C:\\Users\\xinyi\\Desktop")

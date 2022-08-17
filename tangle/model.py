@@ -8,7 +8,8 @@ import torch
 import torch.nn as nn
 import torchvision
 from tangle.model_parts import Bridge, UpBlock, MLP, Up, Down, Conv
-
+import warnings
+warnings.filterwarnings("ignore")
 class PickNet(nn.Module):
     """
     Input: torch.size([B,3,H,W])

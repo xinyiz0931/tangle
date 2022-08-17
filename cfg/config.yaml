@@ -19,7 +19,8 @@ train:
   save_folder: try_sepnet_d_vector_eight_all
 
 infer:
-  infer_type: sep_dir 
+  infer_type: pick_sep
+  backbone: resnet50
   mode: test
   use_cuda: True
   batch_size: 1
@@ -31,3 +32,4 @@ infer:
   # sepp_ckpt_folder: [try_38,model_epoch_4.pth]
   sepp_ckpt_folder: [try_new_sepnet_position,model_epoch_5.pth]
   sepd_ckpt_folder: [try_new_res,model_epoch_12.pth]
+  sepd_ckpt_folder: [try_sepnet_d_vector_eight,model_epoch_2.pth]
