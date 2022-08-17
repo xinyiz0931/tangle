@@ -349,11 +349,12 @@ if __name__ == "__main__":
     # ---------------------- SepNet-D Dataset -------------------
     train_dataset = SepDataset(500,500,data_folder,net_type="sep_dir", sigma=9, data_inds=data_inds)
     print(len(train_dataset))
-    for tr in train_dataset:
+    for tr, p in zip(train_dataset, train_dataset.positions):
         img, v, l = tr
         print(img.shape, v, l)
         depth = visualize_tensor(img[0:3])
         pullmap = cv2.addWeighted(depth, 0.65, visualize_tensor(img[-2], cmap=True), 0.35, -1)
+        pullmap = draw_vector(pullmap, p[0], visualize_tensor(v))
         holdmap = cv2.addWeighted(depth, 0.65, visualize_tensor(img[-1], cmap=True), 0.35, -1)
         cv2.imshow("", cv2.hconcat([depth, pullmap, holdmap]))
         cv2.waitKey()

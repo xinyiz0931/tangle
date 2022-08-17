@@ -13,10 +13,10 @@ train:
   momentum: 0.9
   weight_decay: 0.0001
   num_workers: 4
-  test_ratio: 0.10
+  test_ratio: 0.15
 
   dataset: SepDataAllPullVectorEight
-  save_folder: try_sepnet_d_vector_eight
+  save_folder: try_sepnet_d_vector_eight_all
 
 infer:
   infer_type: sep_dir 

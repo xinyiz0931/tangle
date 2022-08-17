@@ -116,31 +116,60 @@ def tensor_to_image(img_t, cmap=False):
 
     return vis 
 
-def visualize_tensor(img_t, cmap=False):
+def visualize_tensor(src_t, vis=True, cmap=False):
     """
-    input: img_t - torch.Size([img_w, img_h])
+    case 1: (H,W) or (1,H,W) or (H,W,1)
+        - tensor to rgb image but channels are the same
+    case 2: (3,H,W) or (H,W,3) or (1,3,H,W), or (1,W,H,3)
+        - tensor to rgb image
+    case 3: other cases 
     """
-    # img = img_t.cpu().numpy()
-    img = img_t.detach().cpu().numpy()
-    if len(img.shape) == 2: # (h,w)
-        vis = cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-        vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET) if cmap else vis 
-    elif img.shape[0] == 3 or (img.shape[0] == 1 and cmap is False): # (3,h,w) or (1,h,w)
-        vis = np.moveaxis(img, 0, 2)
-        vis = cv2.normalize(vis, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-    elif img.shape[0] == 1 and cmap is True: 
-        vis = np.moveaxis(img, 0, 2) # (1,h,w)
-        vis = cv2.normalize(vis, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-        vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET) if cmap else vis
-    elif img.shape[0] == 2 or img.shape[0] > 3:
-        img_c = []
-        for i in range(img.shape[0]):
-            _img = cv2.normalize(img[i], None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-            _img = cv2.applyColorMap(_img, cv2.COLORMAP_JET) if cmap else _img
-            img_c.append(_img)
-        vis = cv2.hconcat(img_c)
+    src = src_t.detach().cpu().numpy()
+    ret = src
+    # case 1: (H,W), cmap? 
+    if len(src.shape) == 2:
+        if vis: 
+            ret = cv2.normalize(src, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+            ret = cv2.applyColorMap(ret, cv2.COLORMAP_JET) if cmap else ret 
 
-    return vis 
+    # case 1: (1,H,W) or (H,W,1), vis/cmap=>(H,W)
+    elif len(src.shape) == 3 and (src.shape[0] == 1 or src.shape[2] == 1):
+        if vis: 
+            ret = np.squeeze(src)
+            ret = cv2.normalize(src, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+            ret = cv2.applyColorMap(ret, cv2.COLORMAP_JET) if cmap else ret 
+    # case 2: (3,H,W) or (H,W,3)  
+    elif len(src.shape) == 3 and (src.shape[0] == 3 or src.shape[2] == 3):
+        if vis: 
+            if src.shape[0] == 3: src = np.moveaxis(src, 0, 2)
+            ret = cv2.normalize(src, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+            vis = cv2.applyColorMap(ret, cv2.COLORMAP_JET) if cmap else vis
+
+    # case 2: (1,3,H,W) or (1,H,W,3)
+    elif len(src.shape) == 4 and src.shape[0] == 1 and (src.shape[1] == 3 or src.shape[3] == 3):
+        if vis: 
+            src = np.squeeze(src)
+            if src.shape[0] == 3: src = np.moveaxis(src, 0, 2)
+            ret = cv2.normalize(src, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+            vis = cv2.applyColorMap(ret, cv2.COLORMAP_JET) if cmap else vis
+    return ret
+    # elif src.shape[0] == 3 or (src.shape[0] == 1 and cmap is False): # (3,h,w) or (1,h,w)
+    #     vis = np.moveaxis(src, 0, 2)
+    #     vis = cv2.normalize(vis, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    # elif src.shape[0] == 1 and cmap is True: 
+    #     vis = np.moveaxis(src, 0, 2) # (1,h,w)
+    #     vis = cv2.normalize(vis, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    #     vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET) if cmap else vis
+    # elif src.shape[0] == 2 or src.shape[0] > 3:
+    #     src_c = []
+    #     for i in range(src.shape[0]):
+    #         _src = cv2.normalize(src[i], None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    #         _src = cv2.applyColorMap(_src, cv2.COLORMAP_JET) if cmap else _src
+    #         src_c.append(_src)
+    #     vis = cv2.hconcat(src_c)
+    # else:
+    #     vis = src 
+    # return ret 
     #cv2.imshow("windows", vis)
     #cv2.waitKey(0)
     #cv2.destroyAllWindows()
