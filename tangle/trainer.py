@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tangle.utils import *
-from tangle import PickNet, SepNetP, SepNetD, SepNetD_Multi
+from tangle import PickNet, SepNetP, SepNetD 
 from tangle import PickDataset, SepDataset, SepMultiDataset
 
 class Trainer(object):
@@ -45,24 +45,26 @@ class Trainer(object):
             test_dataset = PickDataset(img_h, img_w, config.data_dir, test_inds)
             
         elif self.net_type == 'sep_pos':
-            
-            self.model = SepNetP(out_channels=2)
+            self.model = SepNetP(in_channels=4, out_channels=1) 
+            # self.model = SepNetP(out_channels=2)
 
             self.criterion = torch.nn.BCELoss()
             self.optim = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate, 
                          weight_decay=config.weight_decay)
-            train_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=train_inds)
-            test_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=test_inds)
+            from tangle.dataset import SepDatasetAM
+            train_dataset =  SepDatasetAM(img_h, img_w, config.data_dir, data_inds=train_inds)
+            test_dataset =  SepDatasetAM(img_h, img_w, config.data_dir, data_inds=test_inds)
+            # train_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=train_inds)
+            # test_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=test_inds)
 
         elif self.net_type == 'sep_dir':
             self.model = SepNetD(in_channels=5, backbone=self.backbone)
-            # self.model = SepNetD_Multi(in_channels=5, backbone="resnet")
+            self.model = SepNetD(in_channels=5, backbone="resnet")
             self.criterion = nn.CrossEntropyLoss()
             # self.criterion = torch.nn.MSELoss()
-            # self.optim = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate, 
+            self.optim = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
+            # self.optim = torch.optim.SGD(self.model.parameters(), lr=config.learning_rate, 
                         #  weight_decay=config.weight_decay)
-            self.optim = torch.optim.SGD(self.model.parameters(), lr=config.learning_rate, 
-                         weight_decay=config.weight_decay)
             train_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=train_inds)
             test_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=test_inds)
             # train_dataset = SepMultiDataset(img_h, img_w, config.data_dir, data_inds=train_inds)

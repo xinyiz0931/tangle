@@ -3,7 +3,6 @@ import os
 import json
 import glob
 import math
-from pickletools import read_unicodestring1
 import random
 import shutil
 import cv2
@@ -11,9 +10,6 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-# from bpbot.utils import *
-# from bpbot.grasping import Gripper
-# Cross entropy loss for 2D outputs
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -135,7 +131,7 @@ def visualize_tensor(src_t, vis=True, cmap=False):
     # case 1: (1,H,W) or (H,W,1), vis/cmap=>(H,W)
     elif len(src.shape) == 3 and (src.shape[0] == 1 or src.shape[2] == 1):
         if vis: 
-            ret = np.squeeze(src)
+            src = np.squeeze(src)
             ret = cv2.normalize(src, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
             ret = cv2.applyColorMap(ret, cv2.COLORMAP_JET) if cmap else ret 
     # case 2: (3,H,W) or (H,W,3)  
@@ -231,6 +227,18 @@ def vector2direction(drag_v):
     if degree_y <= 90: rot_degree = degree_x
     else: rot_degree = -degree_x
     return rot_degree
+def vector2angle(v):
+    """
+    input: drag_v - 2d normalized vector
+    output: direction (degree) of image counterclockwise-rotation which makes drag_v equals [1,0]
+    """
+    from bpbot.utils import calc_2vectors_angle
+    degree_x = calc_2vectors_angle(v, [1,0])
+    degree_y = calc_2vectors_angle(v, [0,1])
+    print(degree_x, degree_y)
+    if degree_y <= 90: rot_degree = degree_x
+    else: rot_degree = -degree_x+180
+    return rot_degree
 
 def angle2vector(r, point_to='right'):
     from bpbot.utils import rotate_point
@@ -252,22 +260,24 @@ def angle2vector(r, point_to='right'):
 #     drag_v = np.array(drag_v) / np.linalg.norm(np.array(drag_v)) # 2d norm
 #     return drag_v
 
-def draw_vector(img, p, v, arrow_len=None, arrow_thickness=2, color=(0,255,0)):
+def draw_vector(src, p, v, arrow_len=None, arrow_thickness=2, color=(0,255,0)):
     """
     drag_v: 2d normalizaed vector
     """
+    img = cv2.cvtColor(src, cv2.COLOR_GRAY2RGB) if len(src.shape) == 2 else src
     h, w, _ = img.shape
 
     if arrow_len == None: arrow_len = int(h/10)
     stop_p = [int(p[0]+v[0]*arrow_len), int(p[1]+v[1]*arrow_len)]
     color = (color[2], color[1], color[0]) # rgb --> bgr
     # find drawable region
-    h, w, _ = img.shape
     if stop_p[0] > w: stop_p[0] = int(p[0]+v[0]*(w-p[0]-5))
     if stop_p[1] > h: stop_p[1] = int(p[1]+v[1]*(h-p[1]-5))
     if stop_p[0] < 0: stop_p[0] = int(p[0]+v[0]*(p[0]+5))
     if stop_p[1] < 0: stop_p[1] = int(p[1]+v[1]*(p[1]+5))
     drawn = cv2.arrowedLine(img, p, stop_p, color, arrow_thickness)
+    if len(src.shape) == 2:
+        return cv2.cvtColor(drawn, cv2.COLOR_RGB2GRAY)
     return drawn
 
 # def draw_vector(img, start_p, v, arrow_len=None, arrow_thickness=2, color=(0,255,255)):

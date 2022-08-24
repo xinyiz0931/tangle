@@ -210,11 +210,13 @@ class SepDataset(Dataset):
         
         self.transform = transforms.Compose([transforms.ToTensor()])
         self.images = []
+
         self.positions, self.directions, self.labels = [], [], []
         # self.crosses = []
         if data_type == 'train':
             if data_inds == None:
-                data_inds = random_inds(data_num, data_num)
+                # data_inds = random_inds(data_num, data_num)
+                data_inds = list(range(data_num))
 
             if 'pos' in net_type:
                 positions = np.load(positions_path)
@@ -222,9 +224,11 @@ class SepDataset(Dataset):
                 for i in data_inds:
                     self.images.append(os.path.join(images_folder, '%06d.png'%i))
                     self.positions.append(positions[i])
-                    print('Loading data: %d / %d' % (loaded_num, len(data_inds*len(direction))), end='')
+                    loaded_num += 1
+                    print('Loading data: %d / %d' % (loaded_num, len(data_inds)), end='')
                     print('\r', end='') 
                 print(f"Finish loading {loaded_num} samples! ")
+
             elif 'dir' in net_type:
                 positions = np.load(positions_path)
                 labels = np.load(labels_path)
@@ -232,15 +236,14 @@ class SepDataset(Dataset):
                 direction = np.load(direction_path)
                 loaded_num = 0
                 for i in data_inds:
-                    # for j in range(len(labels[i])):
-                    for j in range(1):
+                    for j in range(len(direction)):
                         self.images.append(os.path.join(images_folder, '%06d.png'%i))
                         self.positions.append(positions[i])
                         self.labels.append(labels[i][j])
-                        
+
                         self.directions.append(direction[j])
                         loaded_num += 1
-                        print('loading data: %d / %d' % (loaded_num, len(data_inds*len(direction))), end='')
+                        print('Loading data: %d / %d' % (loaded_num, len(data_inds*len(direction))), end='')
                         print('\r', end='') 
                 print(f"Finish loading {loaded_num} samples! ")
 
@@ -252,17 +255,23 @@ class SepDataset(Dataset):
         return len(self.images)
 
     def __getitem__(self, index):
-
         if self.data_type == 'train':
+            _img = cv2.imread(self.images[index]) 
+            _p = self.positions[index]
+            # cv2.circle(_img, _p[0], 7, (0,255,0), 2)
+            # cv2.imshow("", _img)
+            # cv2.waitKey()
+            # cv2.destroyAllWindows()
             _img = cv2.imread(self.images[index])
-            _h, _w, _ = _img.shape
-            img = cv2.resize(_img, (self.img_w, self.img_h))
             _p = self.positions[index] # pull, hold
+            _h, _w, _ = _img.shape
 
-            _p[:,0] = _p[:,0] * self.img_w / _w
-            _p[:,1] = _p[:,1] * self.img_h / _h
-            p = _p.astype(int)
-                
+            img = cv2.resize(_img, (self.img_w, self.img_h))
+            p = _p.copy()
+            p[:,0] = _p[:,0] * self.img_w / _w
+            p[:,1] = _p[:,1] * self.img_h / _h
+            p = p.astype(int)
+            self.positions[index] = p
             heatmap = gauss_2d_batch(self.img_h, self.img_w, self.sigma, p)
             
             # p_no_hold = np.array([p[0]])
@@ -286,6 +295,69 @@ class SepDataset(Dataset):
             return img
         
             # return all_img_no_hold, q, l
+class SepDatasetAM(Dataset):
+    def __init__(self, img_h, img_w, data_folder, sigma=8, data_type="train", data_inds=None):
+        super().__init__()
+        self.img_h = img_h
+        self.img_w = img_w
+        self.sigma = sigma
+        self.data_type = data_type
+        degrees = []
+        
+        
+        images_folder = os.path.join(data_folder, "images")
+        positions_path = os.path.join(data_folder, "positions.npy")
+        labels_path = os.path.join(data_folder, "labels.npy")
+        direction_path = os.path.join(data_folder, "direction.npy")
+
+        data_num = len(os.listdir(images_folder))
+        
+        self.transform = transforms.Compose([transforms.ToTensor()])
+        self.images = []
+        self.pullmaps = []
+        self.holdmaps = []
+        from bpbot.utils import rotate_img
+        self.positions, self.directions = [], []
+        if data_type == "train":
+            if data_inds == None:
+                data_inds = list(range(data_num))
+            positions = np.load(positions_path)
+            labels = np.load(labels_path)
+            direction = np.load(direction_path)
+            for i in range(len(direction)):
+                degrees.append(360/len(direction)*i)
+            loaded_num = 0
+            for i in data_inds:
+                _img = cv2.imread(os.path.join(images_folder, "%06d.png"%i))
+                _p = positions[i] # pull, hold
+                _h, _w, _ = _img.shape
+                img = cv2.resize(_img, (self.img_w, self.img_h))
+                p = _p.copy()
+                p[:,0] = _p[:,0] * self.img_w / _w
+                p[:,1] = _p[:,1] * self.img_h / _h
+                p = p.astype(int)
+
+                [pullmap, holdmap] = gauss_2d_batch(self.img_h, self.img_w, self.sigma, p)
+                pullmap = visualize_tensor(pullmap)
+                holdmap = visualize_tensor(holdmap)
+                for j in np.where(labels[i]==1)[0]:
+                    theta = degrees[j]
+                    self.images.append(rotate_img(img, theta))
+                    self.pullmaps.append(rotate_img(pullmap, theta))
+                    self.holdmaps.append(rotate_img(holdmap, theta))
+                    
+                    loaded_num += 1
+                    print('Loading data: %d / %d' % (loaded_num, len(data_inds)), end='')
+                    print('\r', end='') 
+            print(f"Finish loading {loaded_num} samples! ")
+    def __len__(self): 
+        return len(self.images)
+
+    def __getitem__(self, index):
+        if self.data_type == "train": 
+            inp = torch.cat((self.transform(self.images[index]), self.transform(self.holdmaps[index])))
+            out = self.transform(self.pullmaps[index]).double()
+            return inp, out
 
 class SepMultiDataset(Dataset):
     def __init__(self, img_h, img_w, folder, sigma=6, data_inds=None):
@@ -328,8 +400,9 @@ if __name__ == "__main__":
     from tangle import Config
     cfg = Config(config_type="train")
     # data_folder = cfg.data_dir
+# 
 
-    data_inds = random_inds(10,1000)
+    # data_inds = random_inds(10,1000)
     data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorAugment"
     data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEight"
     # ---------------------- SepNet-D Dataset -------------------
@@ -347,18 +420,49 @@ if __name__ == "__main__":
     #     cv2.waitKey()
     #     cv2.destroyAllWindows()
     # ---------------------- SepNet-D Dataset -------------------
-    train_dataset = SepDataset(500,500,data_folder,net_type="sep_dir", sigma=9, data_inds=data_inds)
-    print(len(train_dataset))
-    for tr, p in zip(train_dataset, train_dataset.positions):
-        img, v, l = tr
-        print(img.shape, v, l)
-        depth = visualize_tensor(img[0:3])
-        pullmap = cv2.addWeighted(depth, 0.65, visualize_tensor(img[-2], cmap=True), 0.35, -1)
-        pullmap = draw_vector(pullmap, p[0], visualize_tensor(v))
-        holdmap = cv2.addWeighted(depth, 0.65, visualize_tensor(img[-1], cmap=True), 0.35, -1)
-        cv2.imshow("", cv2.hconcat([depth, pullmap, holdmap]))
-        cv2.waitKey()
+    # train_dataset = SepDataset(500,500,data_folder,net_type="sep_dir", sigma=9)
+    # for i in inds:
+    #     img, v, l = train_dataset[i]
+    #     p = train_dataset.positions[i]
+    #     print(train_dataset.images[i], p.flatten())
+    #     # print(img.shape, p.flatten(), v, l)
+    #     depth = visualize_tensor(img[0:3])
+    #     pullmap = cv2.addWeighted(depth, 0.65, visualize_tensor(img[-2], cmap=True), 0.35, -1)
+    #     if l == 0:
+    #         pullmap = draw_vector(pullmap, p[0], visualize_tensor(v), color=(255,0,0))
+    #     else:
+    #         pullmap = draw_vector(pullmap, p[0], visualize_tensor(v), color=(0,255,0))
+    #     holdmap = cv2.addWeighted(depth, 0.65, visualize_tensor(img[-1], cmap=True), 0.35, -1)
+    #     cv2.imshow("", cv2.hconcat([depth, pullmap, holdmap]))
+    #     cv2.waitKey()
+    #     cv2.destroyAllWindows()
+
+    inds = random_inds(20, 1000) 
+    train_dataset = SepDatasetAM(500,500,data_folder,sigma=9, data_inds=inds)
+    print(len(train_dataset.images))
+    print(len(train_dataset.directions))
+    for i in range(20):
+        print("=>", i)
+        out1, out2 = train_dataset[i]
+
+        # print(img.shape, pull.shape, hold.shape)
+        img = visualize_tensor(out1[:3])
+        pull = visualize_tensor(out1[-1], cmap=True)
+        hold = visualize_tensor(out2, cmap=True)
+        print(img.shape, pull.shape, hold.shape)
+        pull_map = cv2.addWeighted(img, 0.65, pull, 0.35, 1)
+        hold_map = cv2.addWeighted(img, 0.65, hold, 0.35, 1)
+        cv2.imshow("", cv2.hconcat([img, pull_map, hold_map]))
+        cv2.waitKey(0)
         cv2.destroyAllWindows()
+
+        # cv2.imshow("", cv2.hconcat((pull, hold)))
+        # cv2.waitKey()
+        # cv2.destroyAllWindows()
+        # cv2.circle(_img, _p[0], 7, (0,255,0), 2)
+
+    # for tr, p in zip(train_dataset, train_dataset.positions):
+    #     img, v, l = tr
 
     # ---------------------- SepMultiDataset -------------------
     # train_dataset = SepMultiDataset(512, 512, data_folder, sigma=8)
@@ -373,9 +477,6 @@ if __name__ == "__main__":
     #     pull_map = cv2.addWeighted(depth, 0.65, pull, 0.35, 1)
     #     hold_map = cv2.addWeighted(depth, 0.65, hold, 0.35, 1)
     #     drawn = draw_vectors_bundle(depth, (250,250), scores=lbl)
-    #     cv2.imshow("", cv2.hconcat([drawn, pull_map, hold_map]))
-    #     cv2.waitKey(0)
-    #     cv2.destroyAllWindows()
     
 
     # # data_folder = "D:\\datasets\\holdandpull_test"

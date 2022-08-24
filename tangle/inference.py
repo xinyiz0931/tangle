@@ -232,7 +232,13 @@ class Inference(object):
             
         return pull_hold_p, heatmaps
 
-    
+    def infer_sep_dir_am(self, data_dir=None, grasps=None, itvl=8):
+        if data_dir != None: self.data_list = self.get_image_list(data_dir) 
+        else: self.data_list = self.get_image_list(self.dataset_dir)
+        print(self.data_list)
+
+        # for i, d in enumerate(self.data_list):
+        #     src = cv2.
     def infer_sep_dir(self, data_dir=None, grasps=None, itvl=8):
         """Use SepNet-D to infer scores of `itvl` directions for N samples
 
@@ -338,12 +344,11 @@ class Inference(object):
                 overlays.append(overlay)
 
             if cmap: 
-                if scores[0] > scores[1]:
-                    cv2.putText(overlays[0], "pick", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (48, 192, 19), 2)
-                    cv2.putText(overlays[1], "sep", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-                else:
-                    cv2.putText(overlays[0], "pick", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-                    cv2.putText(overlays[1], "sep", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (48, 192, 19), 2)
+                # if scores[0] > scores[1]:
+                #     cv2.putText(overlays[1], "sep", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                # else:
+                #     cv2.putText(overlays[0], "pick", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                #     cv2.putText(overlays[1], "sep", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (48, 192, 19), 2)
                 showing = cv2.hconcat(overlays)
             else:
                 if scores[0] > scores[1]: showing = overlays[0]
@@ -435,7 +440,7 @@ class Inference(object):
             "pick_sep"    : pick_or_sep, pick_sep_p, pn_scores, pull_hold_p, snd_scores 
         """
         self.data_list = [] # ininitialize 
-        if infer_type is not None:
+        if infer_type is not None and infer_type != self.infer_type:
             if "pick" in infer_type and not self.exist_models[0]:
                 return
             if "sep" in infer_type and (not self.exist_models[1] or not self.exist_models[2]):
@@ -530,7 +535,6 @@ class Inference(object):
                     if save: self.plot(d, o_pick, plot_type="pick", save_dir=save_dir)
 
             return pick_or_sep, pick_sep_p, pn_scores, pull_hold_p, snd_scores
-
         else: 
             print(f"Wrong infer type! ")
 if __name__ == "__main__":
@@ -540,13 +544,15 @@ if __name__ == "__main__":
     inference = Inference(config=cfg)
     
     # folder = "D:\\dataset\\picknet\\test\\depth0.png"
-    folder = "/home/hlab/bpbot/data/depth/depth_cropped.png"
+    # folder = "/home/hlab/bpbot/data/depth/depth_cropped.png"
     # folder = "D:\\dataset\\sepnet\\val\\images"
-    # folder = "C:\\Users\\xinyi\\Pictures"
+    saved = "C:\\Users\\xinyi\\Desktop"
     # print(inference.get_image_list(folder))
-    
+    folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEight\\images\\000253.png" 
+    folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\SC\\97\\depth.png" 
+    folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\SC\\35\\depth.png" 
     # res = inference.infer(data_dir=folder, infer_type="pick")
-    res = inference.infer(data_dir=folder, save_dir="/home/hlab/Desktop", infer_type="sep")
+    res = inference.infer(data_dir=folder, save_dir=saved, infer_type="sep_pos")
     print(res)
     # res = inference.infer(data_dir=folder, save_dir="C:\\Users\\xinyi\\Desktop")
     # inference.infer(save_dir="C:\\Users\\xinyi\\Desktop")

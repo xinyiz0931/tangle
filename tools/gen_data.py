@@ -248,7 +248,7 @@ def vis_solution(source_dir, dest_dir):
 #     np.save(labels_path, labels_list)
 #     np.save(direction_path, direction_list)
 
-def gen_sepdata_from_pe(source_dir, dest_dir, itvl=16):
+def gen_sepdata_from_pe(source_dir, dest_dir, itvl=16, point_to_right=False):
     """
     Generate dastaset from only calculated data, using directory/.json
     ├ dest_dir
@@ -280,7 +280,6 @@ def gen_sepdata_from_pe(source_dir, dest_dir, itvl=16):
         labels_list = np.load(labels_path).tolist()
     else:
         labels_list = []
-
     direction_list = []
     for i in range(itvl): 
         direction_list.append(angle2vector(i*360/itvl))
@@ -292,8 +291,10 @@ def gen_sepdata_from_pe(source_dir, dest_dir, itvl=16):
         j_path = os.path.join(d, "sln.json")
         if not os.path.exists(j_path): 
             continue
+
         fp = open(j_path, 'r+')
         json_file = json.loads(fp.read())
+        if not json_file: continue
         img = cv2.imread(os.path.join(d, "depth.png"))
         l = [0] * itvl
         if "pullhold" in json_file:
@@ -315,21 +316,25 @@ def gen_sepdata_from_pe(source_dir, dest_dir, itvl=16):
         
         elif "pull" in json_file and "hold" in json_file:
             degrees = json_file["angle"]
-            g = np.array([j["pull"], j["hold"]])
-            for j in range(itvl):
-                r = j*(360/itvl)
+            g = np.array([json_file["pull"], json_file["hold"]])
+            for k in range(itvl):
+                r = k*(360/itvl)
                 if r in degrees: 
-                    l[j] = 1
+                    l[k] = 1
 
-        i_list, g_list, l_list = augment_data(image=img, grasp=g, label=l, aug_rot_itvl=4, aug_multiplier=3) 
+        i_list, g_list, l_list = augment_data(image=img, grasp=g, label=l, aug_rot_itvl=1, aug_multiplier=1) 
+        # i_list, g_list, l_list = augment_data(image=img, grasp=g, label=l, aug_rot_itvl=4, aug_multiplier=3) 
         for i_, g_, l_ in zip(i_list, g_list, l_list):
             new_img_path = os.path.join(images_dir, "%06d.png" % (num+num_exist))
             positions_list.append(g_)
             labels_list.append(l_)
             cv2.imwrite(new_img_path, i_)
             num += 1
+            print('[*] Generating data: %d' % (num), end='')
+            print('\r', end='') 
 
-            if num % 100 == 0: print(f"Transferred {num} samples! ")
+    print(f"[*] Finish generating {num} samples! ")
+            # if num % 100 == 0: print(f"Transferred {num} samples! ")
     np.save(positions_path,positions_list)
     np.save(labels_path, labels_list)
     np.save(direction_path, direction_list) 
@@ -365,11 +370,12 @@ def augment_data(image, grasp, label, aug_rot_itvl=4, aug_multiplier=4):
             grasp_aug = []
             for k in range(len(kps.keypoints)):
                 grasp_aug.append([int(kps_aug[k].x), int(kps_aug[k].y)])
-            #  image_after = kps_aug.draw_on_image(img_aug, size=7)
+            image_after = kps_aug.draw_on_image(img_aug, size=7)
             # ia.imshow(image_after)
             search_degree = (360-rot_degree) % 360 
             lbl_aug = label[_rots.index(search_degree):] + label[:_rots.index(search_degree)]
             images_aug.append(img_aug)
+            # images_aug.append(image_after)
             grasps_aug.append(grasp_aug)
             labels_aug.append(lbl_aug)
             # cv2.circle(img_aug, grasp_aug[0], 7, (0,255,0), -1)
@@ -381,15 +387,15 @@ def augment_data(image, grasp, label, aug_rot_itvl=4, aug_multiplier=4):
 if __name__ == "__main__":
     # ---------------- generate original data ------------------
     src_dir = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_final_fine"
-    # src_dir = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_only_calc"
-    aug_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorAugment"
-    aug_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEight"
+    # src_dir = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes_relabel"
+    # aug_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorAugment"
+    aug_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightRight"
+    # aug_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightObj"
     for _s in os.listdir(src_dir):
         if _s[0] == '_': continue
         if _s.upper() != 'SR': continue
         _src_dir = os.path.join(src_dir, _s)
         print('--------', _src_dir, " => ", aug_dir, '--------')
-        # gen_sepdata_from_pe(_src_dir, aug_dir)
         gen_sepdata_from_pe(_src_dir, aug_dir, itvl=8)
 
     # ------------- generate data from oc + sln.json --------------
