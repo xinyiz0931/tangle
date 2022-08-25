@@ -42,7 +42,7 @@ class Config(object):
             root_dir = data["root_dir_linux"]
         elif platform.system() == "Windows":
             root_dir = data["root_dir_win"]
-
+        self.root_dir = root_dir
         try:
             self.config = data[self.config_type]
         except KeyError:

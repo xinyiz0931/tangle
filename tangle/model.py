@@ -278,13 +278,16 @@ if __name__ == "__main__":
     # ----------------------- SepNet-D ---------------------------- 
     # ckpt = "C:\\Users\\xinyi\\Documents\\Checkpoint\\try_new_res\\model_epoch_12.pth"
     ckpt = "C:\\Users\\xinyi\\Documents\\Checkpoint\\try_SR\\model_epoch_99.pth"
+    ckpt = "C:\\Users\\xinyi\\Documents\\Checkpoint\\try_sepnet_vector_eight\\model_epoch_10.pth"
     model = SepNetD(in_channels=5, backbone="conv")
     out = model.forward((inp_img5, inp_direction))
     model.load_state_dict(torch.load(ckpt))
     print("SepNet-D: ", inp_img5.shape, inp_direction.shape, "=>", out.shape)
 
     # ----------------------- SepNet-D Action-spatial map ---------------------------- 
-    model = SepNetP(in_channels=4, out_channels=1)
+    model = SepNetP(in_channels=4, out_channels=1).cuda()
+    inp_img4 = inp_img4.cuda()
+    
     out = model.forward(inp_img4)
     print("SepNet-D (AM): ", out.shape)
     # ----------------------- SepNet-D Multi ---------------------------- 

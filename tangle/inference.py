@@ -41,11 +41,11 @@ class Inference(object):
                 models[1] = True
 
             elif self.infer_type == "sep_dir":
-                self.sepdirnet = SepNetD(in_channels=5, backbone="resnet50")
+                self.sepdirnet = SepNetD(in_channels=5, backbone="conv")
                 models[2] = True
             else:
                 self.sepposnet = SepNetP(out_channels=2)
-                self.sepdirnet = SepNetD(in_channels=5, backbone="resnet50")
+                self.sepdirnet = SepNetD(in_channels=5, backbone="conv")
                 
                 # self.sepdirnet_m = SepNetD_Multi(in_channels=5, backbone="resnet")
                 models[1] = True
@@ -70,9 +70,18 @@ class Inference(object):
                 # self.sepdirnet_m.load_state_dict(torch.load(_m))
                 self.sepdirnet = self.sepdirnet.cuda()
                 self.sepdirnet.load_state_dict(torch.load(config.sepd_ckpt))
-            else:
+            # else:
                 self.sepdirnet.load_state_dict(torch.load(config.sepd_ckpt,map_location=torch.device("cpu")))
-        self.exist_models = models    
+        self.exist_models = models
+        
+        self.sepdamnet = SepNetP(in_channels=4, out_channels=1)
+        _ckpt= os.path.join(config.root_dir, "Checkpoint", *config.sepdam_ckpt_folder)
+        if self.use_cuda:
+            self.sepdamnet = self.sepdamnet.cuda()
+            self.sepdamnet.load_state_dict(torch.load(_ckpt))
+        else:
+            self.sepdamnet.load_state_dict(torch.load(_ckpt))
+
         # if validation mode, it"s necessary to load the dataset
         if self.mode == "val":
             # inds = random_inds(2, 100)
@@ -232,13 +241,93 @@ class Inference(object):
             
         return pull_hold_p, heatmaps
 
-    def infer_sep_dir_am(self, data_dir=None, grasps=None, itvl=8):
+    def infer_sep_dir_am(self, data_dir=None, itvl=8):
         if data_dir != None: self.data_list = self.get_image_list(data_dir) 
         else: self.data_list = self.get_image_list(self.dataset_dir)
-        print(self.data_list)
+        pull_hold_p, snp_heatmaps = self.infer_sep_pos(data_dir=data_dir)
+        for d in self.data_list: 
+            src = cv2.imread(d)
+            src_h, src_w, _ = src.shape
+            img = cv2.resize(src, (self.img_w, self.img_h))
+            holdmaps,pullmaps = [], []
+            pullscores = []
+            for i in range(itvl):
+                theta = 360 / itvl * i
+                img_r = rotate_img(img, theta)
+                img_r_t = self.transform(img_r)
+                img_r_t = torch.unsqueeze(img_r_t, 0).cuda() if self.use_cuda else torch.unsqueeze(img_r_t, 0)
+                out = self.sepposnet.forward(img_r_t)
+                holdmap = out[:,1:2,:,:][0][0]
+                cat_r_t = torch.cat((img_r_t, out[:,1:2,:,:]), 1)
+                print("Position:" ,img_r.shape, '=>', out.shape, '=>', holdmap.shape)
+                holdmap_v = visualize_tensor(holdmap, cmap=True)
+                holdmap = holdmap.detach().cpu().numpy()
+                hold_y, hold_x = np.unravel_index(holdmap.argmax(), holdmap.shape)
+                hold_p = np.array([hold_x, hold_y])
+                vis = cv2.addWeighted(img_r, 0.65, holdmap_v, 0.35, -1)
+                cv2.circle(vis, hold_p, 7, (0,255,255), 2)
+                holdmaps.append(vis)
+
+                pullmap_t = self.sepdamnet.forward(cat_r_t)[0]
+                print("Direction: ", cat_r_t.shape,'=>', pullmap_t.shape)
+                pullmap_v = visualize_tensor(pullmap_t, cmap=True)
+                pullmap = pullmap_t.detach().cpu().numpy()[0]
+                pull_y, pull_x = np.unravel_index(pullmap.argmax(), pullmap.shape)        
+                score = pullmap.max()
+                pullscores.append(score)
+                print(f"------- Point: ({pull_x}, {pull_y}), score: {score}")
+                vis = cv2.addWeighted(img_r, 0.65, pullmap_v, 0.35, -1) 
+                cv2.circle(vis, (pull_x, pull_y), 8, (0,255,0),-1)
+                cv2.circle(vis, hold_p, 7, (0,255,255),2)
+                cv2.putText(vis, str(np.round(score, 6)), (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                vis = draw_vector(vis, (pull_x, pull_y), (1,0), color=(0,255,0))
+                # cv2.putText(vis, "text", (15,15), 1.0, cv2.FONT_HERSHEY_SIMPLEX, (255,255,255), 3)
+                pullmaps.append(vis)
+                # cv2.imshow(d, vis)
+                # cv2.waitKey()
+                # cv2.destroyAllWindows()
+            max_idx = pullscores.index(max(pullscores))
+            print("Best :", max_idx)
+            _h1 = cv2.hconcat(pullmaps[:4])
+            _h2 = cv2.hconcat(pullmaps[4:])
+            _h3 = cv2.vconcat([_h1, _h2])
+            cv2.imshow("", _h3)
+            
+            cv2.waitKey()
+            cv2.destroyAllWindows()
+
 
         # for i, d in enumerate(self.data_list):
+            # print("Step 1: detect hold point: ", pull_hold_p[i][-1])
+            # hold_p = np.asarray(pull_hold_p[i][-1])
+            # src = cv2.imread(d)
+            # src_h, src_w, _ = src.shape
+            # img = cv2.resize(src, (self.img_w, self.img_h))
+            # hold_p[0] *= self.img_w / src_w
+            # hold_p[1] *= self.img_h / src_h
+            # holdmap = gauss_2d_batch(self.img_w, self.img_h, 8, np.array([hold_p]))
+            # img_t = torch.cat((self.transform(img), holdmap.float()), 0) 
+            # img_t = torch.unsqueeze(img_t, 0).cuda() if self.use_cuda else torch.unsqueeze(img_t, 0)
+            # pullmap_t = self.sepdamnet.forward(img_t)[0]
+            
+            # print(img_t.shape, "=>", pullmap_t.shape) 
+            # pullmap_v = visualize_tensor(pullmap_t, cmap=True)
+            # pullmap = pullmap_t.detach().cpu().numpy()[0]
+            # pull_y, pull_x = np.unravel_index(pullmap.argmax(), pullmap.shape)
+            # score = pullmap.max()
+            # print(f"Point: ({pull_x}, {pull_y}), score: {score}")
+            # vis = cv2.addWeighted(img, 0.65, pullmap_v, 0.35, -1) 
+            # cv2.circle(vis, (pull_x, pull_y), 8, (0,255,0),-1)
+            # cv2.circle(vis, hold_p, 7, (0,255,255),2)
+            # cv2.circle(vis, pull_hold_p[0][0], 7, (0,255,0),2)
+            # cv2.imshow(d, vis)
+            # cv2.waitKey()
+            # cv2.destroyAllWindows()
+            
+        # for i, d in enumerate(self.data_list):
         #     src = cv2.
+
+
     def infer_sep_dir(self, data_dir=None, grasps=None, itvl=8):
         """Use SepNet-D to infer scores of `itvl` directions for N samples
 
@@ -548,11 +637,17 @@ if __name__ == "__main__":
     # folder = "D:\\dataset\\sepnet\\val\\images"
     saved = "C:\\Users\\xinyi\\Desktop"
     # print(inference.get_image_list(folder))
-    folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEight\\images\\000253.png" 
-    folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\SC\\97\\depth.png" 
-    folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\SC\\35\\depth.png" 
+    folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEight\\images\\000177.png" 
+    folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightAugment\\images\\000055.png" 
+    folder = "C:\\Users\\xinyi\\Documents\\Code\\bpbot\\data\\test\\depth20.png" 
+    # folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\SC\\97\\depth.png" 
+    # folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\SC\\35\\depth.png" 
+    folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\U\\122\\depth.png" 
+
     # res = inference.infer(data_dir=folder, infer_type="pick")
-    res = inference.infer(data_dir=folder, save_dir=saved, infer_type="sep_pos")
-    print(res)
-    # res = inference.infer(data_dir=folder, save_dir="C:\\Users\\xinyi\\Desktop")
-    # inference.infer(save_dir="C:\\Users\\xinyi\\Desktop")
+    # res = inference.infer(data_dir=folder, save_dir=saved, infer_type="sep_pos")
+    # print(res)
+
+    # inference.infer_sep_dir_am(data_dir=folder)
+    p, s = inference.infer(data_dir=folder, save_dir=saved,infer_type="sep")
+    print(s)

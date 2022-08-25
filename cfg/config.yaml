@@ -15,15 +15,15 @@ train:
   num_workers: 4
   test_ratio: 0.15
 
-  dataset: SepDataAllPullVectorEight
+  dataset: SepDataAllPullVectorEightAugment
   # dataset: SepDataAllPullVector  
-  save_folder: try_action_map
+  save_folder: try_action_map_augment
 
 infer:
-  infer_type: sep_pos
+  infer_type: sep
   backbone: resnet34
   mode: test
-  use_cuda: False 
+  use_cuda: True 
   batch_size: 1
   img_height: 512
   img_width: 512
@@ -34,5 +34,7 @@ infer:
   # sepp_ckpt_folder: [try_new_sepnet_position,model_epoch_5.pth]
   sepp_ckpt_folder: [try_refine,model_epoch_11.pth]
   # sepd_ckpt_folder: [try_new_res,model_epoch_12.pth]
-  sepd_ckpt_folder: [try_sepnet_d_vector_eight,model_epoch_2.pth]
-  sepdam_ckpt_folder: [try_action_map,model_epoch_0.pth]
+  sepd_ckpt_folder: [try_sepnet_vector_eight,model_epoch_12.pth]
+  sepd_ckpt_folder: [try_SR,model_epoch_12.pth]
+  # sepdam_ckpt_folder: [try_action_map,model_epoch_19.pth]
+  sepdam_ckpt_folder: [try_action_map,model_epoch_25.pth]

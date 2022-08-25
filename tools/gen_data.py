@@ -247,8 +247,25 @@ def vis_solution(source_dir, dest_dir):
 #     np.save(positions_path, positions_list)
 #     np.save(labels_path, labels_list)
 #     np.save(direction_path, direction_list)
+def temp(source_dir, dest_dir):
+    num = 0
+    for data in os.listdir(source_dir):
+        d = os.path.join(source_dir, data)
+        j_path = os.path.join(d, "sln.json")
+        if os.path.exists(j_path): 
+            fp = open(j_path, 'r+')
+            json_file = json.loads(fp.read())
+            if not json_file: 
+                num += 1
+                img = cv2.imread(os.path.join(d, "depth.png"))
+                new_d = os.path.join(dest_dir, "%06d.png" % num)
+                cv2.imwrite(new_d, img)
+                print(new_d)
+        # if "pullhold" in json_file: 
+        #     return
+    print("Possible data: " , num)
 
-def gen_sepdata_from_pe(source_dir, dest_dir, itvl=16, point_to_right=False):
+def gen_sepdata_from_pe(source_dir, dest_dir, itvl=16):
     """
     Generate dastaset from only calculated data, using directory/.json
     ├ dest_dir
@@ -386,17 +403,20 @@ def augment_data(image, grasp, label, aug_rot_itvl=4, aug_multiplier=4):
 
 if __name__ == "__main__":
     # ---------------- generate original data ------------------
-    src_dir = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_final_fine"
-    # src_dir = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes_relabel"
+    # src_dir = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_final_fine"
+    src_dir = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes_relabel"
+    dest_dir = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_val\\images"
     # aug_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorAugment"
     aug_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightRight"
+    
     # aug_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightObj"
     for _s in os.listdir(src_dir):
         if _s[0] == '_': continue
-        if _s.upper() != 'SR': continue
+        if _s.upper() != 'U': continue
         _src_dir = os.path.join(src_dir, _s)
         print('--------', _src_dir, " => ", aug_dir, '--------')
-        gen_sepdata_from_pe(_src_dir, aug_dir, itvl=8)
+        temp(_src_dir, dest_dir)
+        # gen_sepdata_from_pe(_src_dir, aug_dir, itvl=8)
 
     # ------------- generate data from oc + sln.json --------------
     # src_dir = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes_relabel"
