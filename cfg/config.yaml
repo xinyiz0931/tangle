@@ -20,8 +20,9 @@ train:
   save_folder: try_action_map_augment
 
 infer:
-  infer_type: sep
+  infer_type: pick_sep
   backbone: resnet34
+  sep_type: spatial
   mode: test
   use_cuda: True 
   batch_size: 1
@@ -34,7 +35,7 @@ infer:
   # sepp_ckpt_folder: [try_new_sepnet_position,model_epoch_5.pth]
   sepp_ckpt_folder: [try_refine,model_epoch_11.pth]
   # sepd_ckpt_folder: [try_new_res,model_epoch_12.pth]
-  sepd_ckpt_folder: [try_sepnet_vector_eight,model_epoch_12.pth]
-  sepd_ckpt_folder: [try_SR,model_epoch_12.pth]
+  sepd_ckpt_folder_v: [try_sepnet_vector_eight,model_epoch_12.pth]
+  sepd_ckpt_folder_v: [try_SR,model_epoch_99.pth]
   # sepdam_ckpt_folder: [try_action_map,model_epoch_19.pth]
-  sepdam_ckpt_folder: [try_action_map,model_epoch_25.pth]
+  sepd_ckpt_folder_s: [try_action_map,model_epoch_25.pth]

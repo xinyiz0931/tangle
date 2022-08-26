@@ -8,7 +8,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from bpbot.utils import *
 from tangle.utils import *
-from tangle import PickNet, SepNetP, SepNetD, SepNetD_Multi
+from tangle import PickNet, SepNet, SepNetD 
 from tangle import PickDataset, SepDataset
 
 class Inference(object):
@@ -19,17 +19,19 @@ class Inference(object):
         self.use_cuda = config.use_cuda
         self.mode = config.mode
         self.infer_type = config.infer_type
+        self.sep_type = config.sep_type
+
         # config.display()
 
         self.img_h = config.img_height
         self.img_w = config.img_width
         self.batch_size = config.batch_size
         self.transform = transforms.Compose([transforms.ToTensor()])
-        self.data_list = []
+        data_list = []
 
         # check modelds" existence [pick, sep_pos, sep_dir]
         models = [False,False,False]
-
+        
         if "pick" in self.infer_type:
             self.picknet = PickNet(model_type="unet", out_channels=2)
             # self.picknet = torch.hub.load("pytorch/vision:v0.10.0", "fcn_resnet50", pretrained=False)
@@ -37,17 +39,23 @@ class Inference(object):
 
         if "sep" in self.infer_type:
             if self.infer_type == "sep_pos":
-                self.sepposnet = SepNetP(out_channels=2)
+                self.sepposnet = SepNet(out_channels=2)
                 models[1] = True
-
+            
             elif self.infer_type == "sep_dir":
-                self.sepdirnet = SepNetD(in_channels=5, backbone="conv")
+                if self.sep_type == "vector":
+                    self.sepdirnet = SepNetD(in_channels=5, backbone="conv")
+                elif self.sep_type == "spatial":
+                    self.sepdirnet = SepNet(in_channels=4, out_channels=1)
                 models[2] = True
+            
             else:
-                self.sepposnet = SepNetP(out_channels=2)
-                self.sepdirnet = SepNetD(in_channels=5, backbone="conv")
+                self.sepposnet = SepNet(out_channels=2)
+                if self.sep_type == "vector": 
+                    self.sepdirnet = SepNetD(in_channels=5, backbone="conv")
+                else: 
+                    self.sepdirnet = SepNet(in_channels=4, out_channels=1)
                 
-                # self.sepdirnet_m = SepNetD_Multi(in_channels=5, backbone="resnet")
                 models[1] = True
                 models[2] = True
         
@@ -65,23 +73,12 @@ class Inference(object):
                 self.sepposnet.load_state_dict(torch.load(config.sepp_ckpt,map_location=torch.device("cpu")))
         if models[2] is True:
             if self.use_cuda: 
-                # self.sepdirnet_m = self.sepdirnet_m.cuda()
-                # _m = "C:\\Users\\xinyi\\Documents\\Checkpoint\\try_new_sepnet_using_all_resnet_mse\\model_epoch_99.pth"
-                # self.sepdirnet_m.load_state_dict(torch.load(_m))
                 self.sepdirnet = self.sepdirnet.cuda()
                 self.sepdirnet.load_state_dict(torch.load(config.sepd_ckpt))
-            # else:
+            else:
                 self.sepdirnet.load_state_dict(torch.load(config.sepd_ckpt,map_location=torch.device("cpu")))
         self.exist_models = models
         
-        self.sepdamnet = SepNetP(in_channels=4, out_channels=1)
-        _ckpt= os.path.join(config.root_dir, "Checkpoint", *config.sepdam_ckpt_folder)
-        if self.use_cuda:
-            self.sepdamnet = self.sepdamnet.cuda()
-            self.sepdamnet.load_state_dict(torch.load(_ckpt))
-        else:
-            self.sepdamnet.load_state_dict(torch.load(_ckpt))
-
         # if validation mode, it"s necessary to load the dataset
         if self.mode == "val":
             # inds = random_inds(2, 100)
@@ -96,25 +93,25 @@ class Inference(object):
         
         elif self.mode == "test":
             self.dataset_dir = config.dataset_dir
-
-    def get_grasps_for_sepnet(self, img):
+    
+    def click(self, img, n=2):
         drawn = img.copy()
-        grasps = [] # 2x2, [[pull_x, pull_y], [hold-x, hold_y]]
+        points = [] # 2x2, [[pull_x, pull_y], [hold-x, hold_y], ...(n)]
         def on_click(event,x,y,flags,param):
             if event == cv2.EVENT_LBUTTONDOWN:
                 cv2.circle(drawn,(x,y),5,(0,255,0),-1)
                 print(f"[*] {x},{y}")
-                grasps.append([x,y])
+                points.append([x,y])
 
         cv2.namedWindow("click twice to select pull and hold")
         cv2.setMouseCallback("click twice to select pull and hold",on_click)
-        while(len(grasps)<2):
+        while(len(points)<n):
             cv2.imshow("click twice to select pull and hold",drawn)
             k = cv2.waitKey(20) & 0xFF
             if k == 27 or k==ord("q"):
                 break
         cv2.destroyAllWindows()
-        return grasps
+        return np.array(points)
 
     def get_image_list(self, data_dir):
         """
@@ -133,7 +130,7 @@ class Inference(object):
             print("[!] Invalid! Data path does not exist ")
         return data_list
 
-    def infer_pick(self, data_dir=None, _s=0):
+    def infer_pick(self, data_list=None, _s=0):
         """Use PickNet to infer N samples
 
         Args:
@@ -149,14 +146,10 @@ class Inference(object):
         heatmaps = []
         pick_or_sep = []
         pick_sep_p = []
-        scores = []
 
         if self.mode == "test":
-            if self.data_list == []:
-                if data_dir != None: self.data_list = self.get_image_list(data_dir)
-                else: self.data_list = self.get_image_list(self.dataset_dir)
 
-            for d in self.data_list:
+            for d in data_list:
                 src_img = cv2.imread(d)
                 src_h, src_w, _ = src_img.shape
                 img = cv2.resize(src_img, (self.img_w, self.img_h))
@@ -178,11 +171,11 @@ class Inference(object):
                 # pick_y, pick_x = np.unravel_index(h[0].argmax(), h[0].shape)
                 # sep_y, sep_x = np.unravel_index(h[1].argmax(), h[1].shape)
 
-                pick_sep_p.append([[pick_x, pick_y], [sep_x, sep_y]])
-                scores.append([h[0].max(), h[1].max()])
+                pick_sep_p.append(np.array([[pick_x, pick_y], [sep_x, sep_y]]))
+                
                 if h[0].max() > h[1].max(): pick_or_sep.append(0)
                 else: pick_or_sep.append(1)
-                heatmaps.append([h_pick, h_sep]) # 2xHxW
+                heatmaps.append(np.array([h_pick, h_sep])) # 2xHxW
                 
         elif self.mode == "val":
             for sample_batched in self.val_loader:
@@ -205,7 +198,7 @@ class Inference(object):
 
         return pick_or_sep, pick_sep_p, heatmaps 
 
-    def infer_sep_pos(self, data_dir=None):
+    def infer_sep_pos(self, data_list=None):
         """Use SepNet-P to infer pull point and hold point for N sampels
 
         Args:
@@ -217,13 +210,10 @@ class Inference(object):
         """
         pull_hold_p = [] # pull + hold
         heatmaps = []
-
+        
         if self.mode == "test":
 
-            if data_dir != None: self.data_list = self.get_image_list(data_dir)
-            else: self.data_list = self.get_image_list(self.dataset_dir)
-
-            for img_path in self.data_list:
+            for img_path in data_list:
                 src_img = cv2.imread(img_path)
                 src_h, src_w, _ = src_img.shape
                 
@@ -236,316 +226,330 @@ class Inference(object):
                 holdmap = cv2.resize(h[1], (src_w, src_h))
                 pull_y, pull_x = np.unravel_index(pullmap.argmax(), pullmap.shape)
                 hold_y, hold_x = np.unravel_index(holdmap.argmax(), holdmap.shape)
-                pull_hold_p.append([[pull_x, pull_y],[hold_x, hold_y]])
-                heatmaps.append([pullmap, holdmap])
+                pull_hold_p.append(np.array([[pull_x, pull_y],[hold_x, hold_y]]))
+                heatmaps.append(np.array([pullmap, holdmap]))
             
         return pull_hold_p, heatmaps
 
-    def infer_sep_dir_am(self, data_dir=None, itvl=8):
-        if data_dir != None: self.data_list = self.get_image_list(data_dir) 
-        else: self.data_list = self.get_image_list(self.dataset_dir)
-        pull_hold_p, snp_heatmaps = self.infer_sep_pos(data_dir=data_dir)
-        for d in self.data_list: 
-            src = cv2.imread(d)
-            src_h, src_w, _ = src.shape
-            img = cv2.resize(src, (self.img_w, self.img_h))
-            holdmaps,pullmaps = [], []
-            pullscores = []
-            for i in range(itvl):
-                theta = 360 / itvl * i
-                img_r = rotate_img(img, theta)
-                img_r_t = self.transform(img_r)
-                img_r_t = torch.unsqueeze(img_r_t, 0).cuda() if self.use_cuda else torch.unsqueeze(img_r_t, 0)
-                out = self.sepposnet.forward(img_r_t)
-                holdmap = out[:,1:2,:,:][0][0]
-                cat_r_t = torch.cat((img_r_t, out[:,1:2,:,:]), 1)
-                print("Position:" ,img_r.shape, '=>', out.shape, '=>', holdmap.shape)
-                holdmap_v = visualize_tensor(holdmap, cmap=True)
-                holdmap = holdmap.detach().cpu().numpy()
-                hold_y, hold_x = np.unravel_index(holdmap.argmax(), holdmap.shape)
-                hold_p = np.array([hold_x, hold_y])
-                vis = cv2.addWeighted(img_r, 0.65, holdmap_v, 0.35, -1)
-                cv2.circle(vis, hold_p, 7, (0,255,255), 2)
-                holdmaps.append(vis)
-
-                pullmap_t = self.sepdamnet.forward(cat_r_t)[0]
-                print("Direction: ", cat_r_t.shape,'=>', pullmap_t.shape)
-                pullmap_v = visualize_tensor(pullmap_t, cmap=True)
-                pullmap = pullmap_t.detach().cpu().numpy()[0]
-                pull_y, pull_x = np.unravel_index(pullmap.argmax(), pullmap.shape)        
-                score = pullmap.max()
-                pullscores.append(score)
-                print(f"------- Point: ({pull_x}, {pull_y}), score: {score}")
-                vis = cv2.addWeighted(img_r, 0.65, pullmap_v, 0.35, -1) 
-                cv2.circle(vis, (pull_x, pull_y), 8, (0,255,0),-1)
-                cv2.circle(vis, hold_p, 7, (0,255,255),2)
-                cv2.putText(vis, str(np.round(score, 6)), (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-                vis = draw_vector(vis, (pull_x, pull_y), (1,0), color=(0,255,0))
-                # cv2.putText(vis, "text", (15,15), 1.0, cv2.FONT_HERSHEY_SIMPLEX, (255,255,255), 3)
-                pullmaps.append(vis)
-                # cv2.imshow(d, vis)
-                # cv2.waitKey()
-                # cv2.destroyAllWindows()
-            max_idx = pullscores.index(max(pullscores))
-            print("Best :", max_idx)
-            _h1 = cv2.hconcat(pullmaps[:4])
-            _h2 = cv2.hconcat(pullmaps[4:])
-            _h3 = cv2.vconcat([_h1, _h2])
-            cv2.imshow("", _h3)
-            
-            cv2.waitKey()
-            cv2.destroyAllWindows()
-
-
-        # for i, d in enumerate(self.data_list):
-            # print("Step 1: detect hold point: ", pull_hold_p[i][-1])
-            # hold_p = np.asarray(pull_hold_p[i][-1])
-            # src = cv2.imread(d)
-            # src_h, src_w, _ = src.shape
-            # img = cv2.resize(src, (self.img_w, self.img_h))
-            # hold_p[0] *= self.img_w / src_w
-            # hold_p[1] *= self.img_h / src_h
-            # holdmap = gauss_2d_batch(self.img_w, self.img_h, 8, np.array([hold_p]))
-            # img_t = torch.cat((self.transform(img), holdmap.float()), 0) 
-            # img_t = torch.unsqueeze(img_t, 0).cuda() if self.use_cuda else torch.unsqueeze(img_t, 0)
-            # pullmap_t = self.sepdamnet.forward(img_t)[0]
-            
-            # print(img_t.shape, "=>", pullmap_t.shape) 
-            # pullmap_v = visualize_tensor(pullmap_t, cmap=True)
-            # pullmap = pullmap_t.detach().cpu().numpy()[0]
-            # pull_y, pull_x = np.unravel_index(pullmap.argmax(), pullmap.shape)
-            # score = pullmap.max()
-            # print(f"Point: ({pull_x}, {pull_y}), score: {score}")
-            # vis = cv2.addWeighted(img, 0.65, pullmap_v, 0.35, -1) 
-            # cv2.circle(vis, (pull_x, pull_y), 8, (0,255,0),-1)
-            # cv2.circle(vis, hold_p, 7, (0,255,255),2)
-            # cv2.circle(vis, pull_hold_p[0][0], 7, (0,255,0),2)
-            # cv2.imshow(d, vis)
-            # cv2.waitKey()
-            # cv2.destroyAllWindows()
-            
-        # for i, d in enumerate(self.data_list):
-        #     src = cv2.
-
-
-    def infer_sep_dir(self, data_dir=None, grasps=None, itvl=8):
+    def infer_sep_dir(self, data_list=None, pos=None, itvl=8):
         """Use SepNet-D to infer scores of `itvl` directions for N samples
 
         Args:
             data_dir (str, optional): path to one image. Defaults to None.
-            grasps (list, optional): Nx(2x2), pull and hold points. Defaults to None.
+            pos (list, optional): Nx(2x2), pull and hold points. Defaults to None.
             itvl (int, optional): _description_. Defaults to 8.
 
         Returns:
             pull_hold_p (list): pull and hold points
-            scores (list): scores of `itvl` directions 
+            pull_v (list): pull vector
+            - scores (list): scores of `itvl` directions when sep_type == "vector"    
+            - heatmaps (list): Nx(itvlxHxW) when sep_type == "spatial"
         """
-        scores = [] # scores for all directions
-        pull_hold_p = []
         if self.mode == "test": 
-            # if self.data_list == []: 
-            if data_dir != None: self.data_list = self.get_image_list(data_dir)
-            else: self.data_list = self.get_image_list(self.dataset_dir)
-            for i, d in enumerate(self.data_list):
+
+            scores = [] # scores for all directions
+            pull_hold_p = []
+            heatmaps = []
+            pull_v = []
+            for i, d in enumerate(data_list):
 
                 src = cv2.imread(d)
                 src_h, src_w, _ = src.shape
-
-
-                # infer a single image
-                if grasps == None: g_ = self.get_grasps_for_sepnet(src)
-                else: g_ = grasps[i]
+                rsz = cv2.resize(src, (self.img_w, self.img_h))
                 
-                if len(g_) != 2: return
-                else: pull_hold_p.append(g_)
+                if self.sep_type == "spatial":
+                    # p_ : for original image before resizing
+                    if pos == None: _p = self.click(src, n=1)
+                    else: _p = pos[i]
+                    # _p = np.array([[359, 182]])
+                    if len(_p) != 1: return
 
-                img = cv2.resize(src, (self.img_w, self.img_h))
-                g_ = np.asarray(g_) 
-                g_[:,0] = g_[:,0] * self.img_w / src_w
-                g_[:,1] = g_[:,1] * self.img_h / src_h
+                    # p: for resized image
+                    p_hold = _p[0].copy()
+                    p_hold[0] *= self.img_w / src_w
+                    p_hold[1] *= self.img_h / src_h
 
-                heatmap_no_hold = gauss_2d_batch(self.img_w, self.img_h, 8, np.array([g_[0]])) 
-                
-                heatmap = gauss_2d_batch(self.img_w, self.img_h, 8, g_)
-                img_t = torch.cat((self.transform(img), heatmap), 0)
-                img_t = torch.unsqueeze(img_t, 0).cuda() if self.use_cuda else torch.unsqueeze(img_t, 0)
-                score = []
-                for r in range(itvl):
-                    direction = angle2vector(r*(360/itvl))
-                    direction =  torch.from_numpy(direction).cuda() if self.use_cuda else torch.from_numpy(direction)
-                    dir_t = direction.view(-1, direction.shape[0])
-                    lbl_pred= self.sepdirnet.forward((img_t.float(), dir_t.float()))
-                    lbl_pred = torch.nn.Softmax(dim=1)(lbl_pred)
-                    lbl_pred = lbl_pred.detach().cpu().numpy()
-                    score.append(lbl_pred.ravel()[1]) # only success possibility
-                
-                scores.append(score)
-                # self.plot(d, scores, grasps)
-            if grasps != None: pull_hold_p = grasps
+                    pullmaps = []
+                    max_score = -1
+                    score_d = []
+                    for j in range(itvl):
+                        img = rsz.copy()
+                        r = 360/itvl*j
+                        img_r = rotate_img(img, r)
+                        p_hold_r = rotate_pixel(p_hold, r, self.img_h, self.img_w)
+                        img_r_t = self.transform(img_r)
+                        img_r_t = torch.unsqueeze(img_r_t, 0).cuda() if self.use_cuda else torch.unsqueeze(img_r_t, 0)
 
-        elif self.mode == "val":
-            # if data_dir != None: data_list = self.get_image_list(data_dir)
-            # else: data_list = self.val_dataset.images
+                        holdmap_r_t = gauss_2d_batch(self.img_w, self.img_h, 8, np.array([p_hold_r])).float()
+                        holdmap_r_t = torch.unsqueeze(holdmap_r_t, 0).cuda() if self.use_cuda else torch.unsqueeze(holdmap_r_t, 0)
+                        inp_t = torch.cat((img_r_t, holdmap_r_t), 1)
+
+                        pullmap_r_t = self.sepdirnet.forward(inp_t)[0][0] # (H,W)
+
+                        pullmap_r = pullmap_r_t.detach().cpu().numpy()
+                        _pullmap_r = cv2.resize(pullmap_r, (src_w, src_h))
+                        pullmap_v = visualize_tensor(pullmap_r_t, cmap=True)
+                        
+                        y, x = np.unravel_index(pullmap_r.argmax(), pullmap_r.shape)
+                        
+                        p_pull = rotate_pixel((x,y), -r, self.img_h, self.img_w)
+                        _p_pull = p_pull.copy()
+                        _p_pull[0] *= src_w / self.img_w
+                        _p_pull[1] *= src_h / self.img_h
+                        vis_r = cv2.addWeighted(img_r, 0.65, pullmap_v, 0.35, -1)
+                        cv2.circle(vis_r, (x,y), 7, (0,255,0), -1)
+                        vis_r = draw_vector(vis_r, (x,y), (1,0), color=(0,255,255))
+                        
+                        if pullmap_r.max() > max_score:
+                            max_score = pullmap_r.max()
+                            _max_p = np.array([_p_pull])
+                            _max_v = angle2vector(r)
+
+                        score_d.append(pullmap_r.max())
+                        # pullmaps.append(pullmap_r)
+                        pullmaps.append(_pullmap_r)
+                    _pos = np.vstack((_max_p, _p))
+
+                    heatmaps.append(np.array(pullmaps)) 
+                    pull_hold_p.append(_pos)
+                    pull_v.append(_max_v)
+
+                elif self.sep_type == "vector": 
+                    if pos == None: p_ = self.click(src, n=2)
+                    else: p_ = pos[i]
+                    
+                    if len(g_) != 2: return
+                    else: pull_hold_p.append(g_)
+
+                    g_ = np.asarray(g_) 
+                    g_[:,0] = g_[:,0] * self.img_w / src_w
+                    g_[:,1] = g_[:,1] * self.img_h / src_h
+                    
+                    heatmap = gauss_2d_batch(self.img_w, self.img_h, 8, g_)
+                    img_t = torch.cat((self.transform(img), heatmap), 0)
+                    img_t = torch.unsqueeze(img_t, 0).cuda() if self.use_cuda else torch.unsqueeze(img_t, 0)
+                    score = []
+                    for r in range(itvl):
+                        direction = angle2vector(r*(360/itvl))
+                        direction =  torch.from_numpy(direction).cuda() if self.use_cuda else torch.from_numpy(direction)
+                        dir_t = direction.view(-1, direction.shape[0])
+                        lbl_pred= self.sepdirnet.forward((img_t.float(), dir_t.float()))
+                        lbl_pred = torch.nn.Softmax(dim=1)(lbl_pred)
+                        lbl_pred = lbl_pred.detach().cpu().numpy()
+                        score.append(lbl_pred.ravel()[1]) # only success possibility
+                    
+                    scores.append(score)
             
-            num_success = 0
-            for sample_batched in self.val_loader:
-                sample_batched = [Variable(d.cuda() if self.use_cuda else d) for d in sample_batched]
-                img_t, dir_gt, labels_gt = sample_batched
-                labels_pred = self.sepdirnet.forward(img_t.float(), dir_gt.float())
-                for j in range(labels_pred.shape[0]):
-                    lbl_pred = labels_pred[j].view(-1, labels_pred[j].shape[0])
-                    lbl_pred = torch.nn.Softmax(dim=1)(lbl_pred)
-                    lbl_gt = labels_gt[j]
-                    if lbl_pred.argmax(dim=1)[0] == lbl_gt: num_success += 1
+            return pull_hold_p, pull_v, heatmaps
+
+        # elif self.mode == "val":
             
-            print(f"[*] Accuracy: {num_success}/{len(self.val_loader)}")
+        #     num_success = 0
+        #     for sample_batched in self.val_loader:
+        #         sample_batched = [Variable(d.cuda() if self.use_cuda else d) for d in sample_batched]
+        #         img_t, dir_gt, labels_gt = sample_batched
+        #         labels_pred = self.sepdirnet.forward(img_t.float(), dir_gt.float())
+        #         for j in range(labels_pred.shape[0]):
+        #             lbl_pred = labels_pred[j].view(-1, labels_pred[j].shape[0])
+        #             lbl_pred = torch.nn.Softmax(dim=1)(lbl_pred)
+        #             lbl_gt = labels_gt[j]
+        #             if lbl_pred.argmax(dim=1)[0] == lbl_gt: num_success += 1
+            
+        #     print(f"[*] Accuracy: {num_success}/{len(self.val_loader)}")
 
-        return pull_hold_p, scores
+        #     return pull_hold_p, scores
 
-    def plot(self, img_path, predictions, show=False, grasps=None, cmap=True, plot_type=None, save_dir=None):
+    def plot(self, img_path, predictions, sep_pos=None, sep_dir=None, show=False, save_dir=None):
         """
         img_path [str], results, grasps [list]
         """
-        if plot_type == None: plot_type = self.infer_type
         img = cv2.imread(img_path)
-        splited = list(os.path.split(img_path))
-        splited[-1] = "out_" + splited[-1]
-        splited.insert(-1, "pred")
+        
+        s_out = list(os.path.split(img_path))
+        s_ret = list(os.path.split(img_path))
+        s_out[-1] = "out_" + s_out[-1]
+        s_ret[-1] = "ret_" + s_ret[-1]
+        s_out.insert(-1, "pred")
+        s_ret.insert(-1, "pred")
 
         if save_dir == None:
-            if not os.path.exists(os.path.join(*splited[:-1])): 
-                os.mkdir(os.path.join(*splited[:-1]))
-            save_path = os.path.join(*splited)
-        
-        else: save_path = os.path.join(save_dir, splited[-1])
+            if not os.path.exists(os.path.join(*s_out[:-1])): 
+                os.mkdir(os.path.join(*s_out[:-1]))
+            save_out_path = os.path.join(*s_out)
+            if not os.path.exists(os.path.join(*s_ret[:-1])): 
+                os.mkdir(os.path.join(*s_ret[:-1]))
+            save_ret_path = os.path.join(*s_ret)
+        else: 
+            save_out_path = os.path.join(save_dir, s_out[-1])
+            save_ret_path = os.path.join(save_dir, s_ret[-1])
 
-        if plot_type == "pick":
+        # plot PickNet
+        if sep_pos is None and sep_dir is None:
 
-            scores, overlays = [], []
+            scores, points, overlays = [], [], []
             for h in predictions[0:2]:
-                pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
                 scores.append(h.max())
-                vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-                if cmap: vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
-                else: vis = cv2.cvtColor(vis, cv2.COLOR_GRAY2RGB)
-                overlay = cv2.addWeighted(img, 0.7, vis, 0.3, 0)
-                overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
-                overlays.append(overlay)
-
-            if cmap: 
-                # if scores[0] > scores[1]:
-                #     cv2.putText(overlays[1], "sep", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-                # else:
-                #     cv2.putText(overlays[0], "pick", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-                #     cv2.putText(overlays[1], "sep", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (48, 192, 19), 2)
-                showing = cv2.hconcat(overlays)
-            else:
-                if scores[0] > scores[1]: showing = overlays[0]
-                else: showing = overlays[1]
-
-        elif plot_type == "sep_pos":
-            points, overlays = [], []
-            for h in predictions: 
                 pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
+                points.append([pred_x, pred_y])
                 vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-                if cmap: 
-                    vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
-                    overlay = cv2.addWeighted(img, 0.7, vis, 0.3, 0)
-                    overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
-                    overlays.append(overlay)
-                else: 
-                    vis = cv2.cvtColor(vis, cv2.COLOR_GRAY2RGB)
-                    points.append([pred_x, pred_y])
-            # # ======= TEMP ========
-            # _tmp_l = list(os.path.split(img_path))
-            # _tmp_path = os.path.join("D:\\dataset\\sepnet\\train\\heatmaps", _tmp_l[-1])
-            # vis = predictions[1]
-            # vis = cv2.normalize(vis, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8) 
-            # cv2.imwrite(_tmp_path, vis)
-            # # =====================
-             
-            if cmap:
-                cv2.putText(overlays[0], "pull", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-                cv2.putText(overlays[1], "hold", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-                showing = cv2.hconcat([overlays[1], overlays[0]])
+                vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
+                overlay = cv2.addWeighted(img, 0.7, vis, 0.3, 0)
+                overlays.append(overlay)
+           
+            out = cv2.hconcat(overlays)
+            ret = img.copy()
+            if scores[0] > scores[1]: 
+                ret  = cv2.circle(ret, points[0], 7, (0, 255, 0), -1)
+                cv2.putText(ret, "pick", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
             else:
-                showing = img.copy()
-                showing = cv2.circle(showing, points[0], 7, (0, 255, 0), -1)
-                showing = cv2.circle(showing, points[1], 7, (0, 0, 255), -1)
+                ret  = cv2.circle(ret, points[1], 7, (0, 255, 0), -1)
+                cv2.putText(ret, "sep", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+        
+        elif sep_pos is not None:
 
-        elif plot_type == "sep_dir":
-            pull_p = grasps[0]
-            hold_p = grasps[1]
-            showing = draw_vectors_bundle(img, start_p=pull_p, scores=predictions)
-            showing = cv2.circle(showing, pull_p,5,(0,255,0),-1)
-            showing = cv2.circle(showing, hold_p,5,(0,255,0),-1)
+            pull_p, hold_p = sep_pos
+            ret = img.copy()
+            ret = cv2.circle(ret, pull_p,7,(0,255,0),-1)
+            ret = cv2.circle(ret, hold_p,7,(0,255,255),2)
             
-        elif plot_type == "sep":
+            if sep_dir is None: 
+                preds_pick, preds_dir = None, None
+                preds_pos = predictions
 
-            [predictions_pos, predictions_dir] = predictions
+            else:
+                if len(predictions) == 2: 
+                    preds_pick = None
+                    [preds_pos, preds_dir] = predictions
+                elif len(predictions) == 3: 
+                    [preds_pick, preds_pos, preds_dir] = predictions
+                else:
+                    preds_pick, preds_pos = None, None
+                    preds_dir = predictions
+                    
+                
+                ret = draw_vector(ret, pull_p, sep_dir, color=(0,255,0))
 
-            pull_p = grasps[0]
-            hold_p = grasps[1]
-            showing = draw_vectors_bundle(img.copy(), start_p=pull_p, scores=predictions_dir)
-            showing = cv2.circle(showing, pull_p,5,(0,255,0),-1)
-            showing = cv2.circle(showing, hold_p,5,(0,255,0),-1)
-            
-            if cmap: 
-                points, overlays = [], []
-                for h in predictions_pos: 
-                    pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
+            out = []
+            # --------- pick or sep ---------
+            if preds_pick is not None: 
+                overlays = []
+                for h in preds_pick[0:2]:
                     vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                     vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
-                    overlay = cv2.addWeighted(img.copy(), 0.7, vis, 0.3, 0)
-                    overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
+                    overlay = cv2.addWeighted(img, 0.7, vis, 0.3, 0)
+                    # overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
                     overlays.append(overlay)
-                showing = cv2.hconcat([overlays[1], overlays[0], showing])
-        
-        print(f"[*] Save the result to {save_path}")
 
-        cv2.imwrite(save_path, showing)
+                out.append(cv2.vconcat(overlays))
+
+            # --------- position ---------
+            if preds_pos is not None: 
+                overlays = []
+                for h in preds_pos: 
+                    vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+                    vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
+                    overlay = cv2.addWeighted(img, 0.7, vis, 0.3, 0)
+                    overlays.append(overlay)
+
+                out.append(cv2.vconcat([overlays[1], overlays[0]]))
+
+            # --------- direction --------- 
+            if preds_dir is not None: 
+                
+                n_col = 4
+                itvl = len(preds_dir)
+                overlays, rot_imgs, scores = [], [], []
+                for i in range(itvl):
+                    r = 360 / itvl * i
+                    img_r = rotate_img(img, r)
+                    h = preds_dir[i]
+                    scores.append(h.max())
+                    pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
+                    heatmap = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+                    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+                    rot_imgs.append(cv2.addWeighted(img_r, 0.65, heatmap, 0.35, -1))
+
+                for i in np.arange(0, itvl, n_col):
+                    overlays.append(cv2.hconcat(rot_imgs[i:i+n_col]))
+                out.append(cv2.vconcat(overlays))
+                
+            out = cv2.hconcat(out)
+
+            # if self.sep_type == "vector": 
+            #     [predictions_pos, predictions_dir] = predictions
+
+            #     pull_p = sep_pos[0]
+            #     hold_p = sep_pos[1]
+            #     showing = draw_vectors_bundle(img.copy(), start_p=pull_p, scores=predictions_dir)
+            #     showing = cv2.circle(showing, pull_p,5,(0,255,0),-1)
+            #     showing = cv2.circle(showing, hold_p,5,(0,255,0),-1)
+            
+            #     overlays = [], []
+            #     for h in predictions_pos: 
+            #         pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
+            #         vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+            #         vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
+            #         overlay = cv2.addWeighted(img.copy(), 0.7, vis, 0.3, 0)
+            #         overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
+            #         overlays.append(overlay)
+            #     showing = cv2.hconcat([overlays[1], overlays[0], showing])
+
+        # print(f"[*] Save the heatmaps to {save_out_path}")
+        print(f"[*] Save the results to {save_ret_path}")
+        cv2.imwrite(save_out_path, out)
+        cv2.imwrite(save_ret_path, ret)
 
         if show: 
-            cv2.imshow(f"{self.infer_type} prediction", showing)
+            cv2.imshow(f"{self.infer_type} prediction", ret)
             cv2.waitKey(0)
             cv2.destroyAllWindows()
-        return showing
 
-    def infer(self, cmap=True, data_dir=None, save=True, save_dir=None, infer_type=None):
+    def infer(self, data_dir=None, save=True, save_dir=None, infer_type=None):
         """Infer use PickNet or SepNet
 
         Args:
-            cmap (bool, optional): visualized heatmaps using color map or not. Defaults to True.
             data_dir (str, optional): default to self.data_dir depending on infer_type test/val.
             save (bool, optional): whether save the visualizaed heatmaps. Defaults to True.
             save_dir (str, optional): where to save visualized heatmaps. Defaults to data_dir/preds/out_*.
             infer_type (_type_, optional): loaded 'sep' => infer_type can be 'sep_pos' or 'sep_dir' 
         Returns:
-            "pick"        : pick_or_sep, pick_sep_p, pn_scores
+            "pick"        : pick_sep_p, pn_scores
             "sep_pos"     : pull_hold_p 
-            "sep_dir"     : pull_hold_p, snd_scores
-            "sep"         : pull_hold_p, snd_scores
-            "pick_sep_pos": pick_or_sep, pick_sep_p, pn_scores, pull_hold_p
-            "pick_sep"    : pick_or_sep, pick_sep_p, pn_scores, pull_hold_p, snd_scores 
+            "sep_dir"     : pull_hold_p, pull_v, snd_scores
+            "sep"         : pull_hold_p, pull_v, snd_scores
+            "pick_sep"    : pick_or_sep, pick_sep_p, pn_scores, pull_hold_p, pull_v, snd_scores 
         """
-        self.data_list = [] # ininitialize 
+        
+        if data_dir != None: 
+            data_list = self.get_image_list(data_dir)
+        else: 
+            data_list = self.get_image_list(self.dataset_dir)
+        
+        infer_flag = True
         if infer_type is not None and infer_type != self.infer_type:
             if "pick" in infer_type and not self.exist_models[0]:
-                return
+                infer_flag = False
             if "sep" in infer_type and (not self.exist_models[1] or not self.exist_models[2]):
-                return
+                infer_flag = False
             if "pos" in infer_type and not self.exist_models[1]:
-                return
+                infer_flag = False
             if "dir" in infer_type and not self.exist_models[2]:
-                return
-        else: 
+                infer_flag = False
+        if infer_flag == False: 
+            print(f"[!] Existing models cannot support infer type: {infer_type}")
+            return
+        
+        if infer_type is None: 
             infer_type = self.infer_type
          
         print(f"[*] Infer type: {infer_type}")
         if infer_type == "pick":
             # return three lists for N samples: 
-            # (1) cls = N x (0->pick/1->sep), (2) PickNet positions: p = N x (2x2)
-            pick_or_sep, pick_sep_p, pn_heatmaps = self.infer_pick(data_dir=data_dir)
+            # (0) Pick or sep:       N x (0->pick/1->sep)
+            # (1) PickNet positions: N x (2x2)
+            # (2) PickNet scores:    N x (2)
+
+            pick_or_sep, pick_sep_p, pn_heatmaps = self.infer_pick(data_list=data_list)
             if self.mode == "val":
                 succ = 0
                 for o in pn_heatmaps: 
@@ -554,100 +558,122 @@ class Inference(object):
                 return [succ, len(pn_heatmaps)]
             else:
                 pn_scores = []
-                if save: 
-                    for d, o in zip(self.data_list, pn_heatmaps):
-                        pn_scores.append([o[0].max(), o[1].max()])
-                        self.plot(d, o, cmap=cmap, save_dir=save_dir, plot_type=infer_type)
+                for d, o in zip(data_list, pn_heatmaps):
+                    pn_scores.append(np.array([o[0].max(), o[1].max()]))
+                    if save: self.plot(d, o, save_dir=save_dir)
                 return pick_or_sep, pick_sep_p, pn_scores
 
         elif infer_type == "sep_pos":
             # return one listst for N sampels: 
-            # (1) SepNet-P positions: p = N x (2x2) 
-            pull_hold_p, snp_heatmaps = self.infer_sep_pos(data_dir=data_dir)
-            if save: 
-                for d, h in zip(self.data_list, snp_heatmaps):
-                    self.plot(d, h, cmap=cmap, show=False, save_dir=save_dir, plot_type=infer_type)
+            # (0) SepNet-P positions: N x (2x2) 
+            pull_hold_p, snp_heatmaps = self.infer_sep_pos(data_list=data_list)
+             
+            for d, p, h in zip(data_list, pull_hold_p, snp_heatmaps):
+                if save: self.plot(d, h, sep_pos=p,show=False, save_dir=save_dir)
             return pull_hold_p
 
         elif infer_type == "sep_dir":
-            # return two lists for N samples: 
-            # (1) manually positions: p = N x (2x2), (2) scores = N x itvl_num
-            pull_hold_p, snd_scores = self.infer_sep_dir(data_dir=data_dir)
-            if save: 
-                for d, s, p in zip(self.data_list, snd_scores, pull_hold_p):
-                    self.plot(d, s, grasps=p, cmap=cmap, save_dir=save_dir, plot_type=infer_type)
-            return pull_hold_p, snd_scores
+            # return thress lists for N samples: 
+            # (0) manually positions:  N x (2x2)
+            # (1) SepNet-D directions: N x (2) 
+            # (2) SepNet-D scores:     N x itvl_num
+
+            pull_hold_p, pull_v, snd_outputs = self.infer_sep_dir(data_list=data_list)
+            snd_scores = []
+
+            for d, sdo, p, v in zip(data_list, snd_outputs, pull_hold_p, pull_v):
+                snd_scores.append(np.array([s_.max() for s_ in sdo]))
+                if save: self.plot(d, sdo, sep_pos=p, sep_dir=v, show=True, save_dir=save_dir)
+            return pull_hold_p, pull_v, snd_scores
 
         elif infer_type == "sep":
             # return three lists for N samples
-            # (1) SepNet-P position: p = N x (2x2), (2) heatmaps = N x (2xHxW) (3) scores = N x itvl_num
-            pull_hold_p, snp_heatmaps = self.infer_sep_pos(data_dir=data_dir)
-            _, snd_scores = self.infer_sep_dir(data_dir=data_dir, grasps=pull_hold_p)
-            if save:            
-                for d, po, do, p in zip(self.data_list, snp_heatmaps, snd_scores, pull_hold_p):
-                    self.plot(d, [po, do], grasps=p, cmap=cmap, save_dir=save_dir, plot_type=infer_type)
-            return pull_hold_p, snd_scores
+            # (0) SepNet-P positions:  N x (2x2)
+            # (1) SepNet-D directions: N x (2) 
+            # (2) SepNet-D scores:     N x itvl_num
+            
+            snd_scores = []
+            pos, snp_heatmaps = self.infer_sep_pos(data_list=data_list)
+            hold_p = [p[1:2] for p in pos]
+            pull_hold_p, pull_v, snd_outputs = self.infer_sep_dir(data_list=data_list, pos=hold_p)
 
-        elif infer_type == "pick_sep_pos":
-            # return three lists for N samples:
-            # (1) cls = N x (0->pick/1->sep), (2) PickNet positions: p = N x (2x2) (3) PickNet scores = N x 2, 
-            # (4) SepNet-P position: p = N x (2x2)
-            pick_or_sep, pick_sep_p, pn_heatmaps = self.infer_pick(data_dir=data_dir)
-            pn_scores = []
-            for d, o_pick, l in zip(self.data_list, pn_heatmaps, pick_or_sep):
-                pn_scores.append([o_pick[0].max(), o_pick[1].max()])
-                if l == 1:
-                    p, o_sepp  = self.infer_sep_pos(data_dir=d) 
-                    pull_hold_p = p
-                    if save: self.plot(d, o_sepp[0], cmap=cmap, show=False, plot_type="sep_pos", save_dir=save_dir)
-                else:
-                    pull_hold_p = None
-                    if save: self.plot(d, o_pick, cmap=cmap, plot_type="pick", save_dir=save_dir)
-            return pick_or_sep, pick_sep_p, pn_scores, pull_hold_p
+            for d, spo, sdo, p, v in zip(data_list, snp_heatmaps, snd_outputs, pull_hold_p, pull_v):
+                snd_scores.append(np.array([s_.max() for s_ in sdo]))
+                if save: self.plot(d, [spo, sdo], sep_pos=p, sep_dir=v, save_dir=save_dir)
+            return pull_hold_p, pull_v, snd_scores
 
         elif infer_type == "pick_sep":
-            # return four lists for N samples:
-            # (1) cls = N x (0->pick/1->sep), (2) PickNet positions: p = N x (2x2) (3) PickNet scores = N x 2, 
-            # (4) SepNet-P positions: p = N x (2x2), (5) SepNet-D scores = N x itvl_num
-            pick_or_sep, pick_sep_p, pn_heatmaps = self.infer_pick(data_dir=data_dir)
-            pn_scores = []
-            for d, o_pick, l in zip(self.data_list, pn_heatmaps, pick_or_sep):
-                pn_scores.append([o_pick[0].max(), o_pick[1].max()])
-                if l == 1:
-                    p, o_sepp  = self.infer_sep_pos(data_dir=d) 
-                    _, o_sepd = self.infer_sep_dir(data_dir=d, grasps=p)
-                    pull_hold_p = p
-                    snd_scores = o_sepd
-                    if save: self.plot(d, [o_sepp[0],o_sepd[0]], grasps=p[0], plot_type="sep", save_dir=save_dir)
-                else:
-                    pull_hold_p, snd_scores = None, None
-                    if save: self.plot(d, o_pick, plot_type="pick", save_dir=save_dir)
+            # return three lists for N samples:
+            # (0) Pick or sep:         N x (0->pick/1->sep)
+            # (1) PickNet positions:   N x (2x2)
+            # (2) PickNet scores:      N x (2)
+            # (3) SepNet-P positions:  N x (2x2)
+            # (4) SepNet-D directions: N x (2) 
+            # (5) SepNet-D scores:     N x itvl_num
 
-            return pick_or_sep, pick_sep_p, pn_scores, pull_hold_p, snd_scores
+            pick_or_sep, pick_sep_p, pn_heatmaps = self.infer_pick(data_list=data_list)
+            pick_idx = [i for i, s in enumerate(pick_or_sep) if s==0] 
+            
+            sep_idx = [i for i, s in enumerate(pick_or_sep) if s==1] 
+            sep_data_list = [data_list[i] for i in sep_idx] 
+
+            pos, snp_heatmaps = self.infer_sep_pos(data_list=sep_data_list)
+            hold_p = [p[1:2] for p in pos]
+            pull_hold_p, pull_v, snd_outputs = self.infer_sep_dir(data_list=sep_data_list, pos=hold_p)
+
+            pn_scores_ = []
+            pull_hold_p_, pull_v_, snd_scores_ = [], [], []
+            for i in range(len(data_list)):
+                pn_scores_.append(np.array([h_.max() for h_ in pn_heatmaps[i]]))
+                if i in pick_idx: 
+                    pull_hold_p_.append(None)
+                    pull_v_.append(None)
+                    snd_scores_.append(None)
+                    if save: 
+                        self.plot(data_list[i], pn_heatmaps[i], save_dir=save_dir)
+                else: 
+                    j = sep_idx.index(i)
+                    pull_hold_p_.append(pull_hold_p[j])
+                    pull_v_.append(pull_v[j])
+                    snd_scores_.append(np.array([h_.max() for h_ in snd_outputs[j]]))
+                    if save: 
+                        self.plot(data_list[i], [pn_heatmaps[i], snp_heatmaps[j], snd_outputs[j]], 
+                                  sep_pos=pull_hold_p[j], sep_dir=pull_v[j], save_dir=save_dir)
+
+            return pick_or_sep, pick_sep_p, pn_scores_, pull_hold_p_, pull_v_, snd_scores_
+           
         else: 
             print(f"Wrong infer type! ")
+
 if __name__ == "__main__":
 
     from tangle import Config
     cfg = Config(config_type="infer")
+    cfg.display()
     inference = Inference(config=cfg)
     
     # folder = "D:\\dataset\\picknet\\test\\depth0.png"
-    # folder = "/home/hlab/bpbot/data/depth/depth_cropped.png"
     # folder = "D:\\dataset\\sepnet\\val\\images"
-    saved = "C:\\Users\\xinyi\\Desktop"
+    # saved = "C:\\Users\\xinyi\\Desktop"
     # print(inference.get_image_list(folder))
-    folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEight\\images\\000177.png" 
-    folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightAugment\\images\\000055.png" 
-    folder = "C:\\Users\\xinyi\\Documents\\Code\\bpbot\\data\\test\\depth20.png" 
+    # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEight\\images\\000177.png" 
+    # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightAugment\\images\\000055.png" 
+    # folder = "C:\\Users\\xinyi\\Documents\\Code\\bpbot\\data\\test\\depth20.png" 
     # folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\SC\\97\\depth.png" 
     # folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\SC\\35\\depth.png" 
-    folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\U\\122\\depth.png" 
+    # folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\U\\122\\depth.png" 
 
     # res = inference.infer(data_dir=folder, infer_type="pick")
     # res = inference.infer(data_dir=folder, save_dir=saved, infer_type="sep_pos")
     # print(res)
+    
+    folder = "/home/hlab/Desktop/predicting/tmp1.png"
+    
+    saved = "/home/hlab/Desktop"
 
-    # inference.infer_sep_dir_am(data_dir=folder)
-    p, s = inference.infer(data_dir=folder, save_dir=saved,infer_type="sep")
-    print(s)
+    # inference.infer(data_dir=folder, infer_type="sep_dir")
+    output = inference.infer(data_dir=folder, infer_type="pick_sep")
+    for f in output:
+        print(f)
+    # p, s = inference.infer(data_dir=folder, save_dir=saved,infer_type="sep")
+    # print(s)

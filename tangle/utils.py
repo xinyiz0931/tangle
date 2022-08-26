@@ -268,6 +268,7 @@ def draw_vector(src, p, v, arrow_len=None, arrow_thickness=2, color=(0,255,0)):
     h, w, _ = img.shape
 
     if arrow_len == None: arrow_len = int(h/10)
+
     stop_p = [int(p[0]+v[0]*arrow_len), int(p[1]+v[1]*arrow_len)]
     color = (color[2], color[1], color[0]) # rgb --> bgr
     # find drawable region

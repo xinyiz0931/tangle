@@ -79,14 +79,14 @@ class PickNet(nn.Module):
             # x = x[:,:self.out_channels, :, :]
             # return x
 
-class SepNetP(nn.Module):
+class SepNet(nn.Module):
     """
     Input: torch.size([B,3,H,W]) - image
     Output: torch.size([B,2,H,W]) - pull map + hold map
     Usage: model_type = "unet" or "fcn"
     """
-    def __init__(self, out_channels, in_channels=3):
-        super(SepNetP, self).__init__()
+    def __init__(self, out_channels, in_channels=3, backbone=""):
+        super(SepNet, self).__init__()
         self.out_channels = out_channels
         from tangle.model_parts import resnet34
         resnet = resnet34(fully_conv=True,
@@ -271,7 +271,7 @@ if __name__ == "__main__":
     # print(f"PickNet: ", out.shape)
 
     # ----------------------- SepNet-P ---------------------------- 
-    model = SepNetP(out_channels=2)
+    model = SepNet(out_channels=2)
     out = model.forward(inp_img3)
     print("SepNet-P: ", inp_img3.shape, "=>", out.shape)
 
@@ -285,7 +285,7 @@ if __name__ == "__main__":
     print("SepNet-D: ", inp_img5.shape, inp_direction.shape, "=>", out.shape)
 
     # ----------------------- SepNet-D Action-spatial map ---------------------------- 
-    model = SepNetP(in_channels=4, out_channels=1).cuda()
+    model = SepNet(in_channels=4, out_channels=1).cuda()
     inp_img4 = inp_img4.cuda()
     
     out = model.forward(inp_img4)

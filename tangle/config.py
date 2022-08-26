@@ -58,8 +58,10 @@ class Config(object):
                 root_dir, "Checkpoint", *self.pick_ckpt_folder)
             self.sepp_ckpt = os.path.join(
                 root_dir, "Checkpoint", *self.sepp_ckpt_folder)
-            self.sepd_ckpt = os.path.join(
-                root_dir, "Checkpoint", *self.sepd_ckpt_folder)
+            if self.sep_type == "vector": 
+                self.sepd_ckpt = os.path.join(root_dir, "Checkpoint", *self.sepd_ckpt_folder_v)
+            elif self.sep_type == "spatial":
+                self.sepd_ckpt = os.path.join(root_dir, "Checkpoint", *self.sepd_ckpt_folder_s)
 
             if self.mode == "test":
                 if "pick" in self.infer_type:
