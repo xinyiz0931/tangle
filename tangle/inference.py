@@ -318,29 +318,36 @@ class Inference(object):
                     if pos == None: p_ = self.click(src, n=2)
                     else: p_ = pos[i]
                     
-                    if len(g_) != 2: return
-                    else: pull_hold_p.append(g_)
-
-                    g_ = np.asarray(g_) 
-                    g_[:,0] = g_[:,0] * self.img_w / src_w
-                    g_[:,1] = g_[:,1] * self.img_h / src_h
+                    if len(p_) != 2: return
+                    else: pull_hold_p.append(p_)
                     
-                    heatmap = gauss_2d_batch(self.img_w, self.img_h, 8, g_)
-                    img_t = torch.cat((self.transform(img), heatmap), 0)
+                    p = p_.copy()
+                    p[:,0] = p_[:,0] * self.img_w / src_w
+                    p[:,1] = p_[:,1] * self.img_h / src_h
+                    heatmap = gauss_2d_batch(self.img_w, self.img_h, 8, p)
+                    img_t = torch.cat((self.transform(rsz), heatmap), 0)
                     img_t = torch.unsqueeze(img_t, 0).cuda() if self.use_cuda else torch.unsqueeze(img_t, 0)
                     score = []
+                    max_score = -1
                     for r in range(itvl):
-                        direction = angle2vector(r*(360/itvl))
-                        direction =  torch.from_numpy(direction).cuda() if self.use_cuda else torch.from_numpy(direction)
-                        dir_t = direction.view(-1, direction.shape[0])
-                        lbl_pred= self.sepdirnet.forward((img_t.float(), dir_t.float()))
+                        vector = angle2vector(r*(360/itvl))
+                        vector_t =  torch.from_numpy(vector).cuda() if self.use_cuda else torch.from_numpy(vector)
+                        vector_t = vector.view(-1, vector_t.shape[0])
+                        lbl_pred= self.sepdirnet.forward((img_t.float(), vector_t.float()))
                         lbl_pred = torch.nn.Softmax(dim=1)(lbl_pred)
                         lbl_pred = lbl_pred.detach().cpu().numpy()
                         score.append(lbl_pred.ravel()[1]) # only success possibility
+                        if lbl_pred.ravel()[1] > max_score: 
+                            max_v= vector 
+                            max_score = lbl_pred.ravel()[1]
                     
                     scores.append(score)
-            
-            return pull_hold_p, pull_v, heatmaps
+                    pull_v.append(max_v)
+
+            if self.sep_type == "spatial":  
+                return pull_hold_p, pull_v, heatmaps
+            elif self.sep_type == "vector": 
+                return pull_hold_p, pull_v, scores
 
         # elif self.mode == "val":
             
@@ -394,6 +401,7 @@ class Inference(object):
                 vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
                 overlay = cv2.addWeighted(img, 0.7, vis, 0.3, 0)
+                overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
                 overlays.append(overlay)
            
             out = cv2.hconcat(overlays)
@@ -437,7 +445,7 @@ class Inference(object):
                     vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                     vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
                     overlay = cv2.addWeighted(img, 0.7, vis, 0.3, 0)
-                    # overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
+                    overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
                     overlays.append(overlay)
 
                 out.append(cv2.vconcat(overlays))
@@ -455,44 +463,32 @@ class Inference(object):
 
             # --------- direction --------- 
             if preds_dir is not None: 
-                
-                n_col = 4
-                itvl = len(preds_dir)
-                overlays, rot_imgs, scores = [], [], []
-                for i in range(itvl):
-                    r = 360 / itvl * i
-                    img_r = rotate_img(img, r)
-                    h = preds_dir[i]
-                    scores.append(h.max())
-                    pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
-                    heatmap = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-                    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-                    rot_imgs.append(cv2.addWeighted(img_r, 0.65, heatmap, 0.35, -1))
 
-                for i in np.arange(0, itvl, n_col):
-                    overlays.append(cv2.hconcat(rot_imgs[i:i+n_col]))
-                out.append(cv2.vconcat(overlays))
-                
-            out = cv2.hconcat(out)
+                if self.sep_type == "spatial":  
+                    n_col = 4
+                    itvl = len(preds_dir)
+                    overlays, rot_imgs, scores = [], [], []
+                    for i in range(itvl):
+                        r = 360 / itvl * i
+                        img_r = rotate_img(img, r)
+                        h = preds_dir[i]
+                        scores.append(h.max())
+                        pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
+                        heatmap = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+                        heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+                        rot_imgs.append(cv2.addWeighted(img_r, 0.65, heatmap, 0.35, -1))
 
-            # if self.sep_type == "vector": 
-            #     [predictions_pos, predictions_dir] = predictions
+                    for i in np.arange(0, itvl, n_col):
+                        overlays.append(cv2.hconcat(rot_imgs[i:i+n_col]))
+                    out.append(cv2.vconcat(overlays))
 
-            #     pull_p = sep_pos[0]
-            #     hold_p = sep_pos[1]
-            #     showing = draw_vectors_bundle(img.copy(), start_p=pull_p, scores=predictions_dir)
-            #     showing = cv2.circle(showing, pull_p,5,(0,255,0),-1)
-            #     showing = cv2.circle(showing, hold_p,5,(0,255,0),-1)
-            
-            #     overlays = [], []
-            #     for h in predictions_pos: 
-            #         pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
-            #         vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-            #         vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
-            #         overlay = cv2.addWeighted(img.copy(), 0.7, vis, 0.3, 0)
-            #         overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
-            #         overlays.append(overlay)
-            #     showing = cv2.hconcat([overlays[1], overlays[0], showing])
+                elif self.sep_type == "vector": 
+
+                    all = draw_vectors_bundle(img.copy(), start_p=pull_p, scores=preds_dir)
+
+                    out.append(cv2.vconcat((all, all)))
+             
+                out = cv2.hconcat(out)
 
         # print(f"[*] Save the heatmaps to {save_out_path}")
         print(f"[*] Save the results to {save_ret_path}")
@@ -595,7 +591,10 @@ class Inference(object):
             snd_scores = []
             pos, snp_heatmaps = self.infer_sep_pos(data_list=data_list)
             hold_p = [p[1:2] for p in pos]
-            pull_hold_p, pull_v, snd_outputs = self.infer_sep_dir(data_list=data_list, pos=hold_p)
+            if self.sep_type == "spatial": 
+                pull_hold_p, pull_v, snd_outputs = self.infer_sep_dir(data_list=data_list, pos=hold_p)
+            elif self.sep_type == "vector":
+                pull_hold_p, pull_v, snd_outputs = self.infer_sep_dir(data_list=data_list, pos=pos, itvl=16)
 
             for d, spo, sdo, p, v in zip(data_list, snp_heatmaps, snd_outputs, pull_hold_p, pull_v):
                 snd_scores.append(np.array([s_.max() for s_ in sdo]))
@@ -653,8 +652,8 @@ if __name__ == "__main__":
     inference = Inference(config=cfg)
     
     # folder = "D:\\dataset\\picknet\\test\\depth0.png"
-    # folder = "D:\\dataset\\sepnet\\val\\images"
-    # saved = "C:\\Users\\xinyi\\Desktop"
+    folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightAugment\\images\\000161.png"
+    saved = "C:\\Users\\xinyi\\Desktop"
     # print(inference.get_image_list(folder))
     # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEight\\images\\000177.png" 
     # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightAugment\\images\\000055.png" 
@@ -667,12 +666,10 @@ if __name__ == "__main__":
     # res = inference.infer(data_dir=folder, save_dir=saved, infer_type="sep_pos")
     # print(res)
     
-    folder = "/home/hlab/Desktop/predicting/tmp1.png"
+    # folder = "/home/hlab/Desktop/predicting/tmp1.png"
     
-    saved = "/home/hlab/Desktop"
-
-    # inference.infer(data_dir=folder, infer_type="sep_dir")
-    output = inference.infer(data_dir=folder, infer_type="pick_sep")
+    # saved = "/home/hlab/Desktop"
+    output = inference.infer(data_dir=folder, infer_type="sep", save_dir=saved)
     for f in output:
         print(f)
     # p, s = inference.infer(data_dir=folder, save_dir=saved,infer_type="sep")

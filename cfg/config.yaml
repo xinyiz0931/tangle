@@ -22,7 +22,7 @@ train:
 infer:
   infer_type: pick_sep
   backbone: resnet34
-  sep_type: spatial
+  sep_type: vector
   mode: test
   use_cuda: True 
   batch_size: 1
@@ -33,7 +33,7 @@ infer:
   # pick_ckpt_folder: [try_retrain_picknet_unet, model_epoch_25.pth]
   # sepp_ckpt_folder: [try_38,model_epoch_4.pth]
   # sepp_ckpt_folder: [try_new_sepnet_position,model_epoch_5.pth]
-  sepp_ckpt_folder: [try_refine,model_epoch_11.pth]
+  sepp_ckpt_folder: [try_refine,model_epoch_19.pth]
   # sepd_ckpt_folder: [try_new_res,model_epoch_12.pth]
   sepd_ckpt_folder_v: [try_sepnet_vector_eight,model_epoch_12.pth]
   sepd_ckpt_folder_v: [try_SR,model_epoch_99.pth]

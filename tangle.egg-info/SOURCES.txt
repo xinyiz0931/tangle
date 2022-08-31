@@ -6,6 +6,7 @@ tangle/dataset.py
 tangle/inference.py
 tangle/model.py
 tangle/model_parts.py
+tangle/model_test.py
 tangle/trainer.py
 tangle/utils.py
 tangle.egg-info/PKG-INFO
