@@ -442,6 +442,7 @@ class Inference(object):
             if preds_pick is not None: 
                 overlays = []
                 for h in preds_pick[0:2]:
+                    pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
                     vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                     vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
                     overlay = cv2.addWeighted(img, 0.7, vis, 0.3, 0)
@@ -454,11 +455,14 @@ class Inference(object):
             if preds_pos is not None: 
                 overlays = []
                 for h in preds_pos: 
+                    pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
                     vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                     vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
                     overlay = cv2.addWeighted(img, 0.7, vis, 0.3, 0)
+                    # overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
                     overlays.append(overlay)
-
+                cv2.imwrite("C:\\Users\\xinyi\\Desktop\\s_map1.png", overlays[1])
+                cv2.imwrite("C:\\Users\\xinyi\\Desktop\\s_map2.png", overlays[0])
                 out.append(cv2.vconcat([overlays[1], overlays[0]]))
 
             # --------- direction --------- 
@@ -476,8 +480,12 @@ class Inference(object):
                         pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
                         heatmap = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                         heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-                        rot_imgs.append(cv2.addWeighted(img_r, 0.65, heatmap, 0.35, -1))
+                        overlay = cv2.addWeighted(img_r, 0.65, heatmap, 0.35, -1)
+                        # cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
+                        # cv2.putText(overlay, str(np.round(h.max(), 3)), (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                        rot_imgs.append(overlay)
 
+                    cv2.imwrite("C:\\Users\\xinyi\\Desktop\\d_map1.png", rot_imgs[3])
                     for i in np.arange(0, itvl, n_col):
                         overlays.append(cv2.hconcat(rot_imgs[i:i+n_col]))
                     out.append(cv2.vconcat(overlays))
@@ -488,19 +496,20 @@ class Inference(object):
 
                     out.append(cv2.vconcat((all, all)))
              
-                out = cv2.hconcat(out)
-
+            out = cv2.hconcat(out)
         # print(f"[*] Save the heatmaps to {save_out_path}")
         print(f"[*] Save the results to {save_ret_path}")
         cv2.imwrite(save_out_path, out)
         cv2.imwrite(save_ret_path, ret)
-
         if show: 
+            
+            cv2.namedWindow(f"{self.infer_type} heatmaps", cv2.WINDOW_NORMAL)
             cv2.imshow(f"{self.infer_type} prediction", ret)
+            cv2.imshow(f"{self.infer_type} heatmaps", out)
             cv2.waitKey(0)
             cv2.destroyAllWindows()
 
-    def infer(self, data_dir=None, save=True, save_dir=None, infer_type=None):
+    def infer(self, data_dir=None, save=True, show=False, save_dir=None, infer_type=None):
         """Infer use PickNet or SepNet
 
         Args:
@@ -556,16 +565,15 @@ class Inference(object):
                 pn_scores = []
                 for d, o in zip(data_list, pn_heatmaps):
                     pn_scores.append(np.array([o[0].max(), o[1].max()]))
-                    if save: self.plot(d, o, save_dir=save_dir)
+                    if save: self.plot(d, o, save_dir=save_dir,show=show)
                 return pick_or_sep, pick_sep_p, pn_scores
 
         elif infer_type == "sep_pos":
             # return one listst for N sampels: 
             # (0) SepNet-P positions: N x (2x2) 
             pull_hold_p, snp_heatmaps = self.infer_sep_pos(data_list=data_list)
-             
-            for d, p, h in zip(data_list, pull_hold_p, snp_heatmaps):
-                if save: self.plot(d, h, sep_pos=p,show=False, save_dir=save_dir)
+            for d, spo, p in zip(data_list, snp_heatmaps, pull_hold_p): 
+                if save: self.plot(d, spo, sep_pos=p, save_dir=save_dir, show=show)
             return pull_hold_p
 
         elif infer_type == "sep_dir":
@@ -579,7 +587,7 @@ class Inference(object):
 
             for d, sdo, p, v in zip(data_list, snd_outputs, pull_hold_p, pull_v):
                 snd_scores.append(np.array([s_.max() for s_ in sdo]))
-                if save: self.plot(d, sdo, sep_pos=p, sep_dir=v, show=True, save_dir=save_dir)
+                if save: self.plot(d, sdo, sep_pos=p, sep_dir=v, show=show, save_dir=save_dir)
             return pull_hold_p, pull_v, snd_scores
 
         elif infer_type == "sep":
@@ -598,7 +606,7 @@ class Inference(object):
 
             for d, spo, sdo, p, v in zip(data_list, snp_heatmaps, snd_outputs, pull_hold_p, pull_v):
                 snd_scores.append(np.array([s_.max() for s_ in sdo]))
-                if save: self.plot(d, [spo, sdo], sep_pos=p, sep_dir=v, save_dir=save_dir)
+                if save: self.plot(d, [spo, sdo], sep_pos=p, sep_dir=v, save_dir=save_dir, show=show)
             return pull_hold_p, pull_v, snd_scores
 
         elif infer_type == "pick_sep":
@@ -629,7 +637,7 @@ class Inference(object):
                     pull_v_.append(None)
                     snd_scores_.append(None)
                     if save: 
-                        self.plot(data_list[i], pn_heatmaps[i], save_dir=save_dir)
+                        self.plot(data_list[i], pn_heatmaps[i], save_dir=save_dir,show=show)
                 else: 
                     j = sep_idx.index(i)
                     pull_hold_p_.append(pull_hold_p[j])
@@ -637,7 +645,7 @@ class Inference(object):
                     snd_scores_.append(np.array([h_.max() for h_ in snd_outputs[j]]))
                     if save: 
                         self.plot(data_list[i], [pn_heatmaps[i], snp_heatmaps[j], snd_outputs[j]], 
-                                  sep_pos=pull_hold_p[j], sep_dir=pull_v[j], save_dir=save_dir)
+                                  sep_pos=pull_hold_p[j], sep_dir=pull_v[j], save_dir=save_dir, show=show)
 
             return pick_or_sep, pick_sep_p, pn_scores_, pull_hold_p_, pull_v_, snd_scores_
            
@@ -652,10 +660,10 @@ if __name__ == "__main__":
     inference = Inference(config=cfg)
     
     # folder = "D:\\dataset\\picknet\\test\\depth0.png"
-    folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightAugment\\images\\000161.png"
+    # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightAugment\\images\\000161.png"
     saved = "C:\\Users\\xinyi\\Desktop"
     # print(inference.get_image_list(folder))
-    # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEight\\images\\000177.png" 
+    folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEight\\images\\000004.png" 
     # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightAugment\\images\\000055.png" 
     # folder = "C:\\Users\\xinyi\\Documents\\Code\\bpbot\\data\\test\\depth20.png" 
     # folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\SC\\97\\depth.png" 
@@ -669,7 +677,7 @@ if __name__ == "__main__":
     # folder = "/home/hlab/Desktop/predicting/tmp1.png"
     
     # saved = "/home/hlab/Desktop"
-    output = inference.infer(data_dir=folder, infer_type="sep", save_dir=saved)
+    output = inference.infer(data_dir=folder, infer_type="sep", save_dir=saved, show=True)
     for f in output:
         print(f)
     # p, s = inference.infer(data_dir=folder, save_dir=saved,infer_type="sep")
