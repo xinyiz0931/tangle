@@ -9,8 +9,7 @@ Otherwise, create a dictionary and use `cfg = Config(config_type="train", config
         "root_dir_linux": "/home/hlab/Documents/",
         "infer": 
         {
-            "infer_type": "pick_sep",
-            "mode": "test",
+            "net_type": "pick_sep",
             "use_cuda": True,
             "batch_size": 1,
             "img_height": 512,
@@ -27,6 +26,7 @@ import platform
 
 class Config(object):
     def __init__(self, config_type, config_data=None):
+        
         self.config_type = config_type
 
         if config_data is None:
@@ -43,47 +43,38 @@ class Config(object):
         elif platform.system() == "Windows":
             root_dir = data["root_dir_win"]
         self.root_dir = root_dir
+
         try:
             self.config = data[self.config_type]
         except KeyError:
             raise AttributeError
 
         if self.config_type == "train":
-            self.save_dir = os.path.join(
-                root_dir, "Checkpoint", self.save_folder)
+            self.save_dir = os.path.join(root_dir, "Checkpoint", self.save_folder)
             self.data_dir = os.path.join(root_dir, "Dataset", self.dataset)
 
         elif self.config_type == "infer":
-            self.pick_ckpt = os.path.join(
-                root_dir, "Checkpoint", *self.pick_ckpt_folder)
-            self.sepp_ckpt = os.path.join(
-                root_dir, "Checkpoint", *self.sepp_ckpt_folder)
+            self.pick_ckpt = os.path.join(root_dir, "Checkpoint", *self.pick_ckpt_folder)
+            self.sepp_ckpt = os.path.join(root_dir, "Checkpoint", *self.sepp_ckpt_folder)
             if self.sep_type == "vector": 
                 self.sepd_ckpt = os.path.join(root_dir, "Checkpoint", *self.sepd_ckpt_folder_v)
             elif self.sep_type == "spatial":
                 self.sepd_ckpt = os.path.join(root_dir, "Checkpoint", *self.sepd_ckpt_folder_s)
 
-            if self.mode == "test":
-                if "pick" in self.infer_type:
-                    self.dataset_dir = os.path.join(
-                        root_dir, "Dataset", "picknet", 'test')
-                elif "sep" in self.infer_type:
-                    self.dataset_dir = os.path.join(
-                        root_dir, "Dataset", "sepnet", 'test')
-                else:
-                    print(f"Wrong inference type: {self.infer_type} ... ")
-            elif self.mode == "val":
-                if self.infer_type == "pick":
-                    self.dataset_dir = os.path.join(
-                        root_dir, "Dataset", "picknet", 'val')
-                elif self.infer_type == "sep_pos" or self.infer_type == 'sep_dir':
-                    self.dataset_dir = os.path.join(
-                        root_dir, "Dataset", "sepnet", 'val')
-                else:
-                    print(
-                        f"Wrong mode/inference combination: {self.mode}/{self.infer_type} ... ")
+            if "pick" in self.net_type:
+                self.dataset_dir = os.path.join(root_dir, "Dataset", "picknet", 'test')
+            elif "sep" in self.net_type:
+                self.dataset_dir = os.path.join(root_dir, "Dataset", "sepnet", 'test')
             else:
-                print(f"Wrong mode: {self.mode} ... ")
+                print(f"Wrong inference type: {self.net_type} ... ")
+        elif self.config_type == "validate":
+            self.pick_ckpt = os.path.join(root_dir, "Checkpoint", self.pick_ckpt_folder)
+            self.sephold_ckpt = os.path.join(root_dir, "Checkpoint", self.sepp_ckpt_folder)
+            self.sepdir_ckpt = os.path.join(root_dir, "Checkpoint", self.sepd_ckpt_folder_v)
+            self.seppull_ckpt = os.path.join(root_dir, "Checkpoint", self.sepd_ckpt_folder_s)
+
+        else:
+            print(f"Wrong config type: {self.config_type} ... ")
 
     def load(self, config_path):
         try:

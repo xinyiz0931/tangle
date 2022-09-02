@@ -18,7 +18,7 @@ class Inference(object):
         self.config = config
         self.use_cuda = config.use_cuda
         self.mode = config.mode
-        self.infer_type = config.infer_type
+        self.net_type = config.net_type
         self.sep_type = config.sep_type
 
         # config.display()
@@ -32,17 +32,17 @@ class Inference(object):
         # check modelds" existence [pick, sep_pos, sep_dir]
         models = [False,False,False]
         
-        if "pick" in self.infer_type:
+        if "pick" in self.net_type:
             self.picknet = PickNet(model_type="unet", out_channels=2)
             # self.picknet = torch.hub.load("pytorch/vision:v0.10.0", "fcn_resnet50", pretrained=False)
             models[0] = True
 
-        if "sep" in self.infer_type:
-            if self.infer_type == "sep_pos":
+        if "sep" in self.net_type:
+            if self.net_type == "sep_pos":
                 self.sepposnet = SepNet(out_channels=2)
                 models[1] = True
             
-            elif self.infer_type == "sep_dir":
+            elif self.net_type == "sep_dir":
                 if self.sep_type == "vector":
                     self.sepdirnet = SepNetD(in_channels=5, backbone="conv")
                 elif self.sep_type == "spatial":
@@ -83,12 +83,12 @@ class Inference(object):
         if self.mode == "val":
             # inds = random_inds(2, 100)
             # inds = random_inds(10,len(os.listdir(os.path.join(config.dataset_dir, "images"))))
-            if "pick" in self.infer_type:
+            if "pick" in self.net_type:
                 # self.val_dataset = PickDataset(self.img_h, self.img_w, config.dataset_dir, data_inds=inds) 
                 self.val_dataset = PickDataset(self.img_h, self.img_w, config.dataset_dir) 
-            elif "sep" in self.infer_type:
-                # self.val_dataset = SepDataset(self.img_h, self.img_w, config.dataset_dir, config.infer_type, data_inds=inds)
-                self.val_dataset = SepDataset(self.img_h, self.img_w, config.dataset_dir, config.infer_type)
+            elif "sep" in self.net_type:
+                # self.val_dataset = SepDataset(self.img_h, self.img_w, config.dataset_dir, config.net_type, data_inds=inds)
+                self.val_dataset = SepDataset(self.img_h, self.img_w, config.dataset_dir, config.net_type)
             self.val_loader = DataLoader(self.val_dataset, batch_size=config.batch_size, shuffle=False)
         
         elif self.mode == "test":
@@ -461,8 +461,6 @@ class Inference(object):
                     overlay = cv2.addWeighted(img, 0.7, vis, 0.3, 0)
                     # overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
                     overlays.append(overlay)
-                cv2.imwrite("C:\\Users\\xinyi\\Desktop\\s_map1.png", overlays[1])
-                cv2.imwrite("C:\\Users\\xinyi\\Desktop\\s_map2.png", overlays[0])
                 out.append(cv2.vconcat([overlays[1], overlays[0]]))
 
             # --------- direction --------- 
@@ -481,11 +479,10 @@ class Inference(object):
                         heatmap = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                         heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
                         overlay = cv2.addWeighted(img_r, 0.65, heatmap, 0.35, -1)
-                        # cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
-                        # cv2.putText(overlay, str(np.round(h.max(), 3)), (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                        cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
+                        cv2.putText(overlay, str(np.round(h.max(), 3)), (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
                         rot_imgs.append(overlay)
 
-                    cv2.imwrite("C:\\Users\\xinyi\\Desktop\\d_map1.png", rot_imgs[3])
                     for i in np.arange(0, itvl, n_col):
                         overlays.append(cv2.hconcat(rot_imgs[i:i+n_col]))
                     out.append(cv2.vconcat(overlays))
@@ -503,20 +500,20 @@ class Inference(object):
         cv2.imwrite(save_ret_path, ret)
         if show: 
             
-            cv2.namedWindow(f"{self.infer_type} heatmaps", cv2.WINDOW_NORMAL)
-            cv2.imshow(f"{self.infer_type} prediction", ret)
-            cv2.imshow(f"{self.infer_type} heatmaps", out)
+            cv2.namedWindow(f"{self.net_type} heatmaps", cv2.WINDOW_NORMAL)
+            cv2.imshow(f"{self.net_type} prediction", ret)
+            cv2.imshow(f"{self.net_type} heatmaps", out)
             cv2.waitKey(0)
             cv2.destroyAllWindows()
 
-    def infer(self, data_dir=None, save=True, show=False, save_dir=None, infer_type=None):
+    def infer(self, data_dir=None, save=True, show=False, save_dir=None, net_type=None):
         """Infer use PickNet or SepNet
 
         Args:
-            data_dir (str, optional): default to self.data_dir depending on infer_type test/val.
+            data_dir (str, optional): default to self.data_dir depending on net_type test/val.
             save (bool, optional): whether save the visualizaed heatmaps. Defaults to True.
             save_dir (str, optional): where to save visualized heatmaps. Defaults to data_dir/preds/out_*.
-            infer_type (_type_, optional): loaded 'sep' => infer_type can be 'sep_pos' or 'sep_dir' 
+            net_type (_type_, optional): loaded 'sep' => net_type can be 'sep_pos' or 'sep_dir' 
         Returns:
             "pick"        : pick_sep_p, pn_scores
             "sep_pos"     : pull_hold_p 
@@ -531,24 +528,24 @@ class Inference(object):
             data_list = self.get_image_list(self.dataset_dir)
         
         infer_flag = True
-        if infer_type is not None and infer_type != self.infer_type:
-            if "pick" in infer_type and not self.exist_models[0]:
+        if net_type is not None and net_type != self.net_type:
+            if "pick" in net_type and not self.exist_models[0]:
                 infer_flag = False
-            if "sep" in infer_type and (not self.exist_models[1] or not self.exist_models[2]):
+            if "sep" in net_type and (not self.exist_models[1] or not self.exist_models[2]):
                 infer_flag = False
-            if "pos" in infer_type and not self.exist_models[1]:
+            if "pos" in net_type and not self.exist_models[1]:
                 infer_flag = False
-            if "dir" in infer_type and not self.exist_models[2]:
+            if "dir" in net_type and not self.exist_models[2]:
                 infer_flag = False
         if infer_flag == False: 
-            print(f"[!] Existing models cannot support infer type: {infer_type}")
+            print(f"[!] Existing models cannot support infer type: {net_type}")
             return
         
-        if infer_type is None: 
-            infer_type = self.infer_type
+        if net_type is None: 
+            net_type = self.net_type
          
-        print(f"[*] Infer type: {infer_type}")
-        if infer_type == "pick":
+        print(f"[*] Infer type: {net_type}")
+        if net_type == "pick":
             # return three lists for N samples: 
             # (0) Pick or sep:       N x (0->pick/1->sep)
             # (1) PickNet positions: N x (2x2)
@@ -568,7 +565,7 @@ class Inference(object):
                     if save: self.plot(d, o, save_dir=save_dir,show=show)
                 return pick_or_sep, pick_sep_p, pn_scores
 
-        elif infer_type == "sep_pos":
+        elif net_type == "sep_pos":
             # return one listst for N sampels: 
             # (0) SepNet-P positions: N x (2x2) 
             pull_hold_p, snp_heatmaps = self.infer_sep_pos(data_list=data_list)
@@ -576,7 +573,7 @@ class Inference(object):
                 if save: self.plot(d, spo, sep_pos=p, save_dir=save_dir, show=show)
             return pull_hold_p
 
-        elif infer_type == "sep_dir":
+        elif net_type == "sep_dir":
             # return thress lists for N samples: 
             # (0) manually positions:  N x (2x2)
             # (1) SepNet-D directions: N x (2) 
@@ -590,7 +587,7 @@ class Inference(object):
                 if save: self.plot(d, sdo, sep_pos=p, sep_dir=v, show=show, save_dir=save_dir)
             return pull_hold_p, pull_v, snd_scores
 
-        elif infer_type == "sep":
+        elif net_type == "sep":
             # return three lists for N samples
             # (0) SepNet-P positions:  N x (2x2)
             # (1) SepNet-D directions: N x (2) 
@@ -609,7 +606,7 @@ class Inference(object):
                 if save: self.plot(d, [spo, sdo], sep_pos=p, sep_dir=v, save_dir=save_dir, show=show)
             return pull_hold_p, pull_v, snd_scores
 
-        elif infer_type == "pick_sep":
+        elif net_type == "pick_sep":
             # return three lists for N samples:
             # (0) Pick or sep:         N x (0->pick/1->sep)
             # (1) PickNet positions:   N x (2x2)
@@ -661,24 +658,24 @@ if __name__ == "__main__":
     
     # folder = "D:\\dataset\\picknet\\test\\depth0.png"
     # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightAugment\\images\\000161.png"
-    saved = "C:\\Users\\xinyi\\Desktop"
+    # saved = "C:\\Users\\xinyi\\Desktop"
     # print(inference.get_image_list(folder))
-    folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEight\\images\\000004.png" 
+    # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEight\\images\\000004.png" 
     # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightAugment\\images\\000055.png" 
     # folder = "C:\\Users\\xinyi\\Documents\\Code\\bpbot\\data\\test\\depth20.png" 
     # folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\SC\\97\\depth.png" 
     # folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\SC\\35\\depth.png" 
     # folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\U\\122\\depth.png" 
 
-    # res = inference.infer(data_dir=folder, infer_type="pick")
-    # res = inference.infer(data_dir=folder, save_dir=saved, infer_type="sep_pos")
+    # res = inference.infer(data_dir=folder, net_type="pick")
+    # res = inference.infer(data_dir=folder, save_dir=saved, net_type="sep_pos")
     # print(res)
     
-    # folder = "/home/hlab/Desktop/predicting/tmp1.png"
+    folder = "/home/hlab/Desktop/predicting/tmp5.png"
     
-    # saved = "/home/hlab/Desktop"
-    output = inference.infer(data_dir=folder, infer_type="sep", save_dir=saved, show=True)
+    saved = "/home/hlab/Desktop"
+    output = inference.infer(data_dir=folder, net_type="sep", save_dir=saved, show=True)
     for f in output:
         print(f)
-    # p, s = inference.infer(data_dir=folder, save_dir=saved,infer_type="sep")
+    # p, s = inference.infer(data_dir=folder, save_dir=saved,net_type="sep")
     # print(s)
