@@ -11,7 +11,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from tangle.utils import *
 from tangle import PickNet, SepNet, SepNetD 
-from tangle import PickDataset, SepDataset, SepMultiDataset
+from tangle import PickDataset, SepDataset
 
 class Trainer(object):
     def __init__(self, config):
@@ -35,6 +35,15 @@ class Trainer(object):
         data_num = len(os.listdir(os.path.join(config.data_dir, 'images')))
         train_inds, test_inds = split_random_inds(data_num, config.test_ratio)
         # train_inds, test_inds = split_random_inds(1000,0.1)
+        
+        # output and log, if save_dir exists, exit
+        if os.path.exists(self.out_dir): 
+            print('Oops! Save directory already exists ... ')
+            answer = input("Do you want to re-write? [yes|no]: ").lower() 
+            if answer != 'yes':
+                self.train_flag = False
+                return 
+        else: os.mkdir(self.out_dir)
 
         if self.net_type == 'pick':
             self.model = PickNet(model_type='unet', out_channels=2)
@@ -52,21 +61,21 @@ class Trainer(object):
             self.optim = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate, 
                          weight_decay=config.weight_decay)
             from tangle.dataset import SepDatasetAM
-            train_dataset =  SepDatasetAM(img_h, img_w, config.data_dir, data_inds=train_inds)
-            test_dataset =  SepDatasetAM(img_h, img_w, config.data_dir, data_inds=test_inds)
+            train_dataset =  Sepdataset(img_w, img_h, config.data_dir, data_inds=train_inds)
+            test_dataset =  SepDataset(img_w, img_h, config.data_dir, data_inds=test_inds)
             # train_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=train_inds)
             # test_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=test_inds)
 
         elif self.net_type == 'sep_dir':
             self.model = SepNetD(in_channels=5, backbone=self.backbone)
-            self.model = SepNetD(in_channels=5, backbone="resnet")
+            # self.model = SepNet(in_channels=4, backbone="resnet50")
             self.criterion = nn.CrossEntropyLoss()
             # self.criterion = torch.nn.MSELoss()
             self.optim = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
             # self.optim = torch.optim.SGD(self.model.parameters(), lr=config.learning_rate, 
                         #  weight_decay=config.weight_decay)
-            train_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=train_inds)
-            test_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=test_inds)
+            train_dataset = SepDataset(img_w, img_h, config.data_dir, self.net_type, data_inds=train_inds)
+            test_dataset = SepDataset(img_w, img_h, config.data_dir, self.net_type, data_inds=test_inds)
             # train_dataset = SepMultiDataset(img_h, img_w, config.data_dir, data_inds=train_inds)
             # test_dataset = SepMultiDataset(img_h, img_w, config.data_dir, data_inds=test_inds)
 
@@ -82,14 +91,7 @@ class Trainer(object):
         if self.use_cuda: 
             self.model.to(self.device)
 
-        # output and log, if save_dir exists, exit
-        if os.path.exists(self.out_dir): 
-            print('Oops! Save directory already exists ... ')
-            answer = input("Do you want to re-write? [yes|no]: ").lower() 
-            if answer != 'yes':
-                self.train_flag = False
-                return 
-        else: os.mkdir(self.out_dir)
+        
         self.log_headers = ['epoch','iteration','train_loss','test_loss','elapsed_time',]
         with open(os.path.join(self.out_dir, 'log.csv'), 'w') as f:
             f.write(','.join(self.log_headers) + '\n')

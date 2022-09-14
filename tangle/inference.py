@@ -85,10 +85,10 @@ class Inference(object):
             # inds = random_inds(10,len(os.listdir(os.path.join(config.dataset_dir, "images"))))
             if "pick" in self.net_type:
                 # self.val_dataset = PickDataset(self.img_h, self.img_w, config.dataset_dir, data_inds=inds) 
-                self.val_dataset = PickDataset(self.img_h, self.img_w, config.dataset_dir) 
+                self.val_dataset = PickDataset(self.img_w, self.img_h, config.dataset_dir) 
             elif "sep" in self.net_type:
                 # self.val_dataset = SepDataset(self.img_h, self.img_w, config.dataset_dir, config.net_type, data_inds=inds)
-                self.val_dataset = SepDataset(self.img_h, self.img_w, config.dataset_dir, config.net_type)
+                self.val_dataset = SepDataset(self.img_w, self.img_h, config.dataset_dir, config.net_type)
             self.val_loader = DataLoader(self.val_dataset, batch_size=config.batch_size, shuffle=False)
         
         elif self.mode == "test":
@@ -658,22 +658,22 @@ if __name__ == "__main__":
     
     # folder = "D:\\dataset\\picknet\\test\\depth0.png"
     # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightAugment\\images\\000161.png"
-    # saved = "C:\\Users\\xinyi\\Desktop"
     # print(inference.get_image_list(folder))
     # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEight\\images\\000004.png" 
     # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightAugment\\images\\000055.png" 
-    # folder = "C:\\Users\\xinyi\\Documents\\Code\\bpbot\\data\\test\\depth20.png" 
+    folder = "C:\\Users\\xinyi\\Code\\bpbot\\data\\test\\depth28.png" 
     # folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\SC\\97\\depth.png" 
     # folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\SC\\35\\depth.png" 
     # folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\U\\122\\depth.png" 
 
+    saved = "C:\\Users\\xinyi\\Desktop"
     # res = inference.infer(data_dir=folder, net_type="pick")
     # res = inference.infer(data_dir=folder, save_dir=saved, net_type="sep_pos")
     # print(res)
     
-    folder = "/home/hlab/Desktop/predicting/tmp5.png"
+    # folder = "/home/hlab/Desktop/predicting/tmp5.png"
     
-    saved = "/home/hlab/Desktop"
+    # saved = "/home/hlab/Desktop"
     output = inference.infer(data_dir=folder, net_type="sep", save_dir=saved, show=True)
     for f in output:
         print(f)

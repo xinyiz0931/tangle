@@ -67,11 +67,15 @@ class Config(object):
                 self.dataset_dir = os.path.join(root_dir, "Dataset", "sepnet", 'test')
             else:
                 print(f"Wrong inference type: {self.net_type} ... ")
+
         elif self.config_type == "validate":
             self.pick_ckpt = os.path.join(root_dir, "Checkpoint", self.pick_ckpt_folder)
             self.sephold_ckpt = os.path.join(root_dir, "Checkpoint", self.sepp_ckpt_folder)
             self.sepdir_ckpt = os.path.join(root_dir, "Checkpoint", self.sepd_ckpt_folder_v)
             self.seppull_ckpt = os.path.join(root_dir, "Checkpoint", self.sepd_ckpt_folder_s)
+
+            self.pick_dataset = os.path.join(root_dir, "Dataset", self.pick_data_folder)
+            self.sep_dataset = os.path.join(root_dir, "Dataset", self.sep_data_folder)
 
         else:
             print(f"Wrong config type: {self.config_type} ... ")

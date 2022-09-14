@@ -2,22 +2,22 @@ root_dir_win: C:\\Users\\xinyi\\Documents
 root_dir_linux: /home/hlab/Documents
 
 train:
-  net_type: sep_pos
-  backbone: resnet34
+  net_type: sep_dir
+  backbone: resnet50
   epochs: 100
   use_cuda: True
   img_height: 512
   img_width: 512
-  batch_size: 2 
+  batch_size: 8 
   learning_rate: 0.001
   momentum: 0.9
   weight_decay: 0.0001
-  num_workers: 4
+  num_workers: 0
   test_ratio: 0.15
 
-  dataset: SepDataAllPullVectorEightAugment
+  dataset: SepDataAllPullVectorReal
   # dataset: SepDataAllPullVector  
-  save_folder: try_action_map_augment
+  save_folder: try_vector_augment_real
 
 infer:
   net_type: pick_sep
@@ -33,22 +33,23 @@ infer:
   # pick_ckpt_folder: [try_retrain_picknet_unet, model_epoch_25.pth]
   # sepp_ckpt_folder: [try_38,model_epoch_4.pth]
   # sepp_ckpt_folder: [try_new_sepnet_position,model_epoch_5.pth]
-  sepp_ckpt_folder: [try_refine,model_epoch_11.pth]
+  sepp_ckpt_folder: [try_refine,model_epoch_3.pth]
   # sepd_ckpt_folder: [try_new_res,model_epoch_12.pth]
   sepd_ckpt_folder_v: [try_sepnet_vector_eight,model_epoch_12.pth]
   sepd_ckpt_folder_v: [try_SR,model_epoch_99.pth]
   # sepdam_ckpt_folder: [try_action_map,model_epoch_19.pth]
   # sepd_ckpt_folder_s: [try_action_map,model_epoch_40.pth]
-  sepd_ckpt_folder_s: [try_action_map,model_epoch_18.pth]
+  # sepd_ckpt_folder_s: [try_action_map_augment,model_epoch_25.pth]
+  sepd_ckpt_folder_s: [try_action_map_augment_real,model_epoch_90.pth]
 
 validate:
   net: sep_dir
   use_cuda: True
   img_height: 512
   img_width: 512
-  pick_dataset: SepDataAllPullVectorEightAugment
-  sep_dataset: SepDataAllPullVectorEightAugment
+  pick_data_folder: Nothing
+  sep_data_folder: SepDataAllPullVectorReal
   pick_ckpt_folder: try8
   sepp_ckpt_folder: try_refine
   sepd_ckpt_folder_v: try_SR
-  sepd_ckpt_folder_s: try_action_map
+  sepd_ckpt_folder_s: try_action_map_augment_real

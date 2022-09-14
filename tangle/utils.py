@@ -67,25 +67,35 @@ def gauss_2d(img_w, img_h, sigma, loc, normalize_dist=False):
     G=torch.exp(-((X-U.float())**2+(Y-V.float())**2)/(2.0*sigma**2))
     return G.double()
         
-def gauss_2d_batch(img_h, img_w, sigma, locs, normalized_dist=False, use_cuda=False):
+def gauss_2d_batch(img_w, img_h, sigma, locs, use_torch=True, use_cuda=False):
     """
     input: locs - numpy.array([[u1,v1],[u2,v2],...])
-    output: G - torch.Size([N, img_w, img_h]), dtype=torch.double
+    output: 
+        if use_torch: G - torch.Size([N, img_w, img_h]), dtype=torch.double
+        else: G - array ([N, img_h, img_w], dtype=float)
     """
-    import torch
     locs = np.array(locs)
-    X,Y = torch.meshgrid([torch.arange(0., img_w), torch.arange(0., img_h)])
-    X = torch.transpose(X, 0, 1).cuda() if use_cuda else torch.transpose(X, 0, 1)
-    Y = torch.transpose(Y, 0, 1).cuda() if use_cuda else  torch.transpose(Y, 0, 1)
+    if use_torch: 
+        import torch
+        X,Y = torch.meshgrid([torch.arange(0., img_w), torch.arange(0., img_h)])
+        X = torch.transpose(X, 0, 1)
+        Y = torch.transpose(Y, 0, 1)
 
-    U = torch.from_numpy(locs[:,0]).cuda() if use_cuda else torch.from_numpy(locs[:,0])
-    V = torch.from_numpy(locs[:,1]).cuda() if use_cuda else torch.from_numpy(locs[:,1])
-    U.unsqueeze_(1).unsqueeze_(2)
-    V.unsqueeze_(1).unsqueeze_(2)
+        U = torch.from_numpy(locs[:,0])
+        V = torch.from_numpy(locs[:,1])
+        U.unsqueeze_(1).unsqueeze_(2)
+        V.unsqueeze_(1).unsqueeze_(2)
 
-    G = torch.exp(-((X-U.float())**2+(Y-V.float())**2)/(2.0*sigma**2))
-    return G.double()
+        G = torch.exp(-((X-U.float())**2+(Y-V.float())**2)/(2.0*sigma**2))
+        return G.double().cuda() if use_cuda else G.double()
 
+    else: 
+        U = np.expand_dims(locs[:,0], axis=(-1,-2))
+        V = np.expand_dims(locs[:,1], axis=(-1,-2))
+        X,Y = np.meshgrid(np.arange(0, img_w), np.arange(0, img_h))
+        G = np.exp(-((X-U)**2+(Y-V)**2)/(2.0*sigma**2))
+        return G
+        
 def tensor_to_image(img_t, cmap=False):
     """
     input: img_t - torch.Size([img_w, img_h])
@@ -169,14 +179,6 @@ def visualize_tensor(src_t, vis=True, cmap=False):
     #cv2.imshow("windows", vis)
     #cv2.waitKey(0)
     #cv2.destroyAllWindows()
-def visualize_pred_map(img):
-    """
-    vis {array} - (h,w), pixel range [0,1]
-    """
-    vis = cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-    vis = cv2.cvtColor(vis, cv2.COLOR_GRAY2RGB)
-    vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
-    return vis
 
 def bilinear_init(in_channels, out_channels, kernel_size):
     import torch
