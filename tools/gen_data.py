@@ -9,8 +9,20 @@ import imgaug as ia
 import imgaug.augmenters as iaa
 from imgaug.augmentables import Keypoint, KeypointsOnImage
 from imgaug.augmentables.segmaps import SegmentationMapsOnImage
+from imgaug.augmentables.heatmaps import HeatmapsOnImage
 from tangle.utils import *
 from bpbot.utils import *
+
+AUG_SEQ = iaa.Sequential([
+    iaa.Flipud(0.3),
+    iaa.Affine(
+        scale=(0.9,1.1),
+        shear=(-10,10),
+        rotate=(-10,10)
+    ),
+    iaa.Sometimes(0.5, iaa.GammaContrast((0.75, 1.5))),
+    iaa.Sometimes(0.5, iaa.ElasticTransformation(alpha=0.5, sigma=0.5))
+])
 
 def transfer_and_refine(solution_dir, source_dir):
     from bpbot.grasping import Gripper
@@ -178,7 +190,97 @@ def vis_solution(source_dir, dest_dir):
                 #cv2.imshow(s, drawn)
                 #cv2.waitKey(0)
                 #cv2.destroyAllWindows()
+def gen_pickdata(source_dir, dest_dir, aug_multiplier=1):
 
+    seq = iaa.Sequential([
+        iaa.Affine(
+            scale=(0.9,1.1),
+            shear=(-10,10),
+            rotate=(-180,180)
+        ),
+        iaa.Sometimes(0.5, iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.01*255), per_channel=0.1)),
+        iaa.Sometimes(0.5, iaa.GammaContrast((0.5, 2.0))),
+        iaa.Sometimes(0.5, iaa.ElasticTransformation(alpha=1, sigma=1))
+        ])
+    seq_noise_only = iaa.Sequential([
+        iaa.Sometimes(0.5, iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.01*255), per_channel=0.1)),
+        iaa.Sometimes(0.5, iaa.GammaContrast((0.5, 2.0))),
+        iaa.Sometimes(0.5, iaa.ElasticTransformation(alpha=1, sigma=1))
+        ])
+    images_dir = os.path.join(dest_dir, "images")
+    masks_dir = os.path.join(dest_dir, "masks")
+    grasps_dir = os.path.join(dest_dir, "grasps")
+    labels_path = os.path.join(dest_dir, "labels.npy")
+
+    for d in [dest_dir, images_dir, masks_dir, grasps_dir]:
+        if not os.path.exists(d): os.mkdir(d)
+    N = 0
+    N_exist = len(os.listdir(images_dir))
+    if os.path.exists(labels_path): 
+        labels = np.load(labels_path).tolist()
+    else: 
+        labels = []
+    from bpbot.grasping import Gripper
+    gripper = Gripper(finger_h=20, finger_w=13, open_w=38)
+
+    print(f"[!] Already exists {N_exist} samples! ") 
+    print(f"[*] Total {len(os.listdir(source_dir))} samples! ")
+
+    for data in os.listdir(source_dir):
+        d = os.path.join(source_dir, data)
+        json_path = os.path.join(d, "info.json")
+        with open(json_path, "r+") as f:
+            j = json.loads(f.read())
+        p = j["pick"]["point"]
+        theta = j["pick"]["angle"]
+        img = cv2.imread(os.path.join(d, "depth.png"))
+        img_h, img_w, _ = img.shape
+        msk = cv2.imread(os.path.join(d, "mask_target.png"), 0)
+        rect = gripper.get_hand_model('close',img_w,img_h,open_w=40,x=p[0],y=p[1],theta=theta)
+        gsp = cv2.bitwise_and(msk, rect)
+
+        if "drag" in j:
+            # negative samples: augment 10x
+            
+            msk = cv2.normalize(msk, None, 0, 1, cv2.NORM_MINMAX).astype(np.float32)
+            gsp = cv2.normalize(gsp, None, 0, 1, cv2.NORM_MINMAX).astype(np.float32)
+            heatmap = np.stack([msk, gsp], 2)
+            heatmap = HeatmapsOnImage(heatmap, shape=img.shape)
+            
+            for _ in range(10):
+                # images_aug = seq(images=images)
+                # image_aug, segmaps_aug = seq(image=images, segmentation_maps=segmaps)
+                img_, masks_ = seq(image=img, heatmaps=heatmap)
+                msk_ = masks_.get_arr()[:,:,0]*255 
+                gsp_ = masks_.get_arr()[:,:,1]*255
+                msk_ = cv2.normalize(msk_, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+                gsp_ = cv2.normalize(gsp_, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+                 
+                new_img_path = os.path.join(images_dir, "%06d.png" % (N+N_exist))
+                new_msk_path = os.path.join(masks_dir, "%06d.png" % (N+N_exist))
+                new_gsp_path = os.path.join(grasps_dir, "%06d.png" % (N+N_exist))
+
+                cv2.imwrite(new_img_path, img_)
+                cv2.imwrite(new_msk_path, msk_)
+                cv2.imwrite(new_gsp_path, gsp_)
+                N += 1 
+                labels.append([1, p[0],p[1], theta])
+        else:
+            # positive samples: randomly add noise
+            img = seq_noise_only(image=img)
+            new_img_path = os.path.join(images_dir, "%06d.png" % (N+N_exist))
+            new_msk_path = os.path.join(masks_dir, "%06d.png" % (N+N_exist))
+            new_gsp_path = os.path.join(grasps_dir, "%06d.png" % (N+N_exist))
+            cv2.imwrite(new_img_path, img)
+            cv2.imwrite(new_msk_path, msk)
+            cv2.imwrite(new_gsp_path, gsp)
+            N += 1
+            labels.append([0, p[0],p[1], theta])
+        # if N > 5: break
+        print("Transfer data: %6d" % N, end='')
+        print('\r', end='')
+    np.save(labels_path, labels)
+    
 def gen_sepdata_from_pe(source_dir, dest_dir, itvl=16):
     """
     Generate dastaset from only calculated data, using directory/.json
@@ -253,7 +355,7 @@ def gen_sepdata_from_pe(source_dir, dest_dir, itvl=16):
                 if r in degrees: 
                     l[k] = 1
 
-        i_list, g_list, l_list = augment_data(image=img, grasp=g, label=l, aug_rot_itvl=4, aug_multiplier=4) 
+        i_list, g_list, l_list = augment_data(image=img, grasp=g, label=l, aug_rot_itvl=1, aug_multiplier=1) 
         # i_list, g_list, l_list = augment_data(image=img, grasp=g, label=l, aug_rot_itvl=4, aug_multiplier=3) 
         for i_, g_, l_ in zip(i_list, g_list, l_list):
             new_img_path = os.path.join(images_dir, "%06d.png" % (num+num_exist))
@@ -263,13 +365,86 @@ def gen_sepdata_from_pe(source_dir, dest_dir, itvl=16):
             num += 1
             print('[*] Generating data: %d' % (num), end='')
             print('\r', end='') 
+        #     if num >= 20: break
+        # if num >= 20: break
 
     print(f"[*] Finish generating {num} samples! ")
             # if num % 100 == 0: print(f"Transferred {num} samples! ")
     np.save(positions_path,positions_list)
     np.save(labels_path, labels_list)
     np.save(direction_path, direction_list) 
+
+def gen_simple_sepdata(source_dir, dest_dir, aug_multimplier=1):
+    images_dir = os.path.join(dest_dir, "images")
+    directions_path = os.path.join(dest_dir, "directions.npy")
+    positions_path = os.path.join(dest_dir, "positions.npy")
+    
+    for d in [dest_dir, images_dir]:
+        if not os.path.exists(d): os.mkdir(d)
+    
+    num = 0 
+    num_exist = len(os.listdir(images_dir))
+    positions_list, directions_list = [], []
+    if os.path.exists(positions_path):
+        positions_list = np.load(positions_path).tolist()
+    if os.path.exists(directions_path):
+        directions_list = np.load(directions_path).tolist()
+
+    print(f"[!] Already exists {num_exist} samples! ")
+    print(f"[*] Total {len(os.listdir(source_dir))} samples! ")
+    for data in os.listdir(source_dir):
+        d = os.path.join(source_dir, data)
+        j_path = os.path.join(d, "info.json")
+        if not os.path.join(j_path): continue
+
+        with open(j_path, "r+") as fp: 
+            json_file = json.loads(fp.read())
+        img = cv2.imread(os.path.join(d, "depth.png"))
         
+        pull_p = json_file["point"]
+        pull_v = json_file["vector"]
+        pull_theta = vector2angle(pull_v)
+        # pull_theta = vector2direction(pull_v)
+        # rot_img = rotate_img(img, pull_theta)
+        rot_img, rot_kpt = rotate_img_kpt(img, [pull_p], pull_theta)
+        rot_p = rot_kpt[0].astype(int)
+
+        # cv2.circle(rot_img, rot_p, 5, (255,0,0),2)
+        # cv2.imshow("", cv2.hconcat([img, rot_img]))
+        # cv2.waitKey()
+        # cv2.destroyAllWindows()
+        i_list, p_list = augment_simple_data(rot_img, rot_p, aug_multiplier=aug_multimplier)
+        for i_, p_ in zip(i_list, p_list):
+            new_img_path = os.path.join(images_dir, "%06d.png" % (num+num_exist))
+            positions_list.append(p_)
+            directions_list.append(pull_v)
+            # cv2.imwrite(img, new_img_path)
+            cv2.imwrite(new_img_path, i_)
+            num += 1
+        print('[*] Generating data: %d' % (num), end='')
+        print('\r', end='') 
+        # if num > 10: break
+
+    print(f"[*] Finish generating {num} samples! ")
+    np.save(positions_path,positions_list)
+    np.save(directions_path, directions_list) 
+    
+def augment_simple_data(image, position, aug_multiplier=4):
+    images_aug = []
+    positions_aug = []
+    kpt = KeypointsOnImage([
+        Keypoint(x=position[0],y=position[1])
+    ], shape=image.shape)
+    
+    for _ in range(aug_multiplier):
+        img_aug, kpt_aug = AUG_SEQ(image=image, keypoints=kpt)
+        pos_aug = np.array([kpt_aug[0].x, kpt_aug[0].y], dtype=int)
+        images_aug.append(img_aug)
+        positions_aug.append(pos_aug)
+    return images_aug, positions_aug
+        
+
+
 def augment_data(image, grasp, label, aug_rot_itvl=4, aug_multiplier=4):
     images_aug = []
     grasps_aug = []
@@ -322,19 +497,19 @@ if __name__ == "__main__":
     src_dir = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\data_final_relabel"
     src_dir = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\data_final_real"
     # aug_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorAugment"
-    aug_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorReal"
+    aug_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorVal"
 
-    # ------------- various shapes -------------------- 
-    for _s in os.listdir(src_dir):
-        if _s[0] == '_': continue
-        if _s.upper() != 'U': continue
-        _src_dir = os.path.join(src_dir, _s)
-        print('--------', _src_dir, " => ", aug_dir, '--------')
-        gen_sepdata_from_pe(_src_dir, aug_dir, itvl=8)
+    # # ------------- various shapes -------------------- 
+    # for _s in os.listdir(src_dir):
+    #     if _s[0] == '_': continue
+    #     if _s.upper() != 'U': continue
+    #     _src_dir = os.path.join(src_dir, _s)
+    #     print('--------', _src_dir, " => ", aug_dir, '--------')
+    #     gen_sepdata_from_pe(_src_dir, aug_dir, itvl=8)
     
-    # ------------ single folder ---------------------
-    print('--------', src_dir, " => ", aug_dir, '--------')
-    gen_sepdata_from_pe(src_dir, aug_dir, itvl=8)
+    # # ------------ single folder ---------------------
+    # print('--------', src_dir, " => ", aug_dir, '--------')
+    # gen_sepdata_from_pe(src_dir, aug_dir, itvl=8)
     
 
     # ------------- generate data from oc + sln.json --------------
@@ -346,4 +521,18 @@ if __name__ == "__main__":
     #     gen_sepdata_from_oc(_src_dir, aug_dir, itvl=8)
 
 
+    # ------------- generate data for picknet --------------
+    # src_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\TangleData"
+    # aug_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\PickDataNew"
+    # for _s in os.listdir(src_dir):
+    #     if "_C" in _s or "_E" in _s:
+    #         continue
+    #     _src_dir = os.path.join(src_dir, _s)
+    #     print("----", _src_dir, " => ", aug_dir, "----")
+    #     gen_pickdata(_src_dir, aug_dir)
+    
+    # ------------- generate data for simplified sepnet --------------
+    src_dir = "C:\\Users\\xinyi\\Desktop\\exp"
+    dest_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataNew"
+    gen_simple_sepdata(src_dir, dest_dir) 
     

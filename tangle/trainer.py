@@ -34,7 +34,7 @@ class Trainer(object):
         img_w = config.img_width
         data_num = len(os.listdir(os.path.join(config.data_dir, 'images')))
         train_inds, test_inds = split_random_inds(data_num, config.test_ratio)
-        # train_inds, test_inds = split_random_inds(1000,0.1)
+        # train_inds, test_inds = split_random_inds(100, config.test_ratio)
         
         # output and log, if save_dir exists, exit
         if os.path.exists(self.out_dir): 
@@ -46,38 +46,22 @@ class Trainer(object):
         else: os.mkdir(self.out_dir)
 
         if self.net_type == 'pick':
-            self.model = PickNet(model_type='unet', out_channels=2)
-            self.criterion = torch.nn.MSELoss()
+            self.model = PickNet(model_type='unet', out_channels=3)
+            # self.criterion = torch.nn.MSELoss()
+            # self.criterion = torch.nn.BCELoss()
+            self.criterion = torch.nn.BCEWithLogitsLoss()
             self.optim = torch.optim.SGD(self.model.parameters(), lr=config.learning_rate,
                          momentum=config.momentum, weight_decay=config.weight_decay)
             train_dataset = PickDataset(img_h, img_w, config.data_dir, train_inds)
             test_dataset = PickDataset(img_h, img_w, config.data_dir, test_inds)
-            
-        elif self.net_type == 'sep_pos':
-            self.model = SepNet(in_channels=4, out_channels=1) 
-            # self.model = SepNet(out_channels=2)
 
+        elif self.net_type == "sep":
+            self.model = SepNet(in_channels=3, out_channels=1)
             self.criterion = torch.nn.BCELoss()
             self.optim = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate, 
-                         weight_decay=config.weight_decay)
-            from tangle.dataset import SepDatasetAM
-            train_dataset =  Sepdataset(img_w, img_h, config.data_dir, data_inds=train_inds)
-            test_dataset =  SepDataset(img_w, img_h, config.data_dir, data_inds=test_inds)
-            # train_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=train_inds)
-            # test_dataset = SepDataset(img_h, img_w, config.data_dir, self.net_type, data_inds=test_inds)
-
-        elif self.net_type == 'sep_dir':
-            self.model = SepNetD(in_channels=5, backbone=self.backbone)
-            # self.model = SepNet(in_channels=4, backbone="resnet50")
-            self.criterion = nn.CrossEntropyLoss()
-            # self.criterion = torch.nn.MSELoss()
-            self.optim = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
-            # self.optim = torch.optim.SGD(self.model.parameters(), lr=config.learning_rate, 
-                        #  weight_decay=config.weight_decay)
-            train_dataset = SepDataset(img_w, img_h, config.data_dir, self.net_type, data_inds=train_inds)
-            test_dataset = SepDataset(img_w, img_h, config.data_dir, self.net_type, data_inds=test_inds)
-            # train_dataset = SepMultiDataset(img_h, img_w, config.data_dir, data_inds=train_inds)
-            # test_dataset = SepMultiDataset(img_h, img_w, config.data_dir, data_inds=test_inds)
+                                          weight_decay=config.weight_decay)
+            train_dataset = SepDataset(img_w, img_h, config.data_dir,data_inds=train_inds)
+            test_dataset = SepDataset(img_w, img_h, config.data_dir, data_inds=test_inds)
 
         else:
             print('No such model type! Select from pick/sep_pos/sep_dir ... ')
@@ -107,23 +91,10 @@ class Trainer(object):
             mask_pred = self.model(img.float())
             loss = self.criterion(mask_pred, mask_gt.float())
 
-        elif self.net_type == 'sep_pos':
-            img, gauss_gt = sample_batched
-            gauss_pred = self.model.forward(img).double()
-            loss = self.criterion(gauss_pred, gauss_gt)
-
-        elif self.net_type == 'sep_dir': 
-            img, direction, lbl_gt = sample_batched
-            lbl_pred = self.model.forward((img.float(), direction.float()))
-            loss = self.criterion(lbl_pred, lbl_gt.long())
-            # img, lbl_gt = sample_batched
-            # lbl_pred = self.model.forward(img.float())
-            # loss = self.criterion(lbl_pred, lbl_gt.float())
-
-        elif self.net_type == 'test':
-            inputs, labels = sample_batched
-            outputs = self.model(inputs)
-            loss = self.criterion(outputs, labels)
+        elif self.net_type == 'sep':
+            img, out_gt = sample_batched
+            out_pred = self.model(img.float())
+            loss = self.criterion(out_pred, out_gt.float())
         return loss
 
     def train_epoch(self):

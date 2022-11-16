@@ -54,28 +54,24 @@ class Config(object):
             self.data_dir = os.path.join(root_dir, "Dataset", self.dataset)
 
         elif self.config_type == "infer":
-            self.pick_ckpt = os.path.join(root_dir, "Checkpoint", *self.pick_ckpt_folder)
-            self.sepp_ckpt = os.path.join(root_dir, "Checkpoint", *self.sepp_ckpt_folder)
-            if self.sep_type == "vector": 
-                self.sepd_ckpt = os.path.join(root_dir, "Checkpoint", *self.sepd_ckpt_folder_v)
-            elif self.sep_type == "spatial":
-                self.sepd_ckpt = os.path.join(root_dir, "Checkpoint", *self.sepd_ckpt_folder_s)
-
-            if "pick" in self.net_type:
-                self.dataset_dir = os.path.join(root_dir, "Dataset", "picknet", 'test')
-            elif "sep" in self.net_type:
-                self.dataset_dir = os.path.join(root_dir, "Dataset", "sepnet", 'test')
-            else:
-                print(f"Wrong inference type: {self.net_type} ... ")
+            self.picknet_ckpt = os.path.join(root_dir, "Checkpoint", *self.pick_ckpt_folder)
+            self.sepnet_ckpt = os.path.join(root_dir, "Checkpoint", *self.sep_ckpt_folder)
 
         elif self.config_type == "validate":
-            self.pick_ckpt = os.path.join(root_dir, "Checkpoint", self.pick_ckpt_folder)
-            self.sephold_ckpt = os.path.join(root_dir, "Checkpoint", self.sepp_ckpt_folder)
-            self.sepdir_ckpt = os.path.join(root_dir, "Checkpoint", self.sepd_ckpt_folder_v)
-            self.seppull_ckpt = os.path.join(root_dir, "Checkpoint", self.sepd_ckpt_folder_s)
-
-            self.pick_dataset = os.path.join(root_dir, "Dataset", self.pick_data_folder)
-            self.sep_dataset = os.path.join(root_dir, "Dataset", self.sep_data_folder)
+            if "pick" in self.net:  
+                self.ckpt_dir = os.path.join(root_dir, "Checkpoint", self.pick_ckpt_folder)
+                self.dataset = os.path.join(root_dir, "Dataset", self.pick_data_folder)
+            elif self.net == "sep_dir":
+                self.ckpt_dir = os.path.join(root_dir, "Checkpoint", self.sepd_ckpt_folder_v)
+                self.dataset = os.path.join(root_dir, "Dataset", self.sep_data_folder)
+            elif self.net == "sep_pull":
+                self.ckpt_dir = os.path.join(root_dir, "Checkpoint", self.sepd_ckpt_folder_s)
+                self.dataset = os.path.join(root_dir, "Dataset", self.sep_data_folder)
+            elif self.net == "sep_hold" or self.net == "sep_pos":
+                self.ckpt_dir = os.path.join(root_dir, "Checkpoint", self.sepp_ckpt_folder)
+                self.dataset = os.path.join(root_dir, "Dataset", self.sep_data_folder)
+            else:
+                print(f"Wrong validation type: {self.net}! ")
 
         else:
             print(f"Wrong config type: {self.config_type} ... ")

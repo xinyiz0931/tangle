@@ -75,6 +75,7 @@ def gauss_2d_batch(img_w, img_h, sigma, locs, use_torch=True, use_cuda=False):
         else: G - array ([N, img_h, img_w], dtype=float)
     """
     locs = np.array(locs)
+    if locs.shape == (2,): locs = np.asarray([locs])
     if use_torch: 
         import torch
         X,Y = torch.meshgrid([torch.arange(0., img_w), torch.arange(0., img_h)])
@@ -218,28 +219,31 @@ def cross_entropy2d(input, target, weight=None, size_average=True):
         loss /= mask.data.sum()
     return loss
 
-def vector2direction(drag_v):
-    """
-    input: drag_v - 2d normalized vector
-    output: direction (degree) of image counterclockwise-rotation which makes drag_v equals [1,0]
-    """
-    from bpbot.utils import calc_2vectors_angle
-    degree_x = calc_2vectors_angle(drag_v, [1,0])
-    degree_y = calc_2vectors_angle(drag_v, [0,1])
-    if degree_y <= 90: rot_degree = degree_x
-    else: rot_degree = -degree_x
-    return rot_degree
+# def vector2direction(drag_v):
+#     """
+#     input: drag_v - 2d normalized vector
+#     output: direction (degree) of image counterclockwise-rotation which makes drag_v equals [1,0]
+#     """
+#     from bpbot.utils import calc_2vectors_angle
+#     degree_x = calc_2vectors_angle(drag_v, [1,0])
+#     degree_y = calc_2vectors_angle(drag_v, [0,1])
+#     if degree_y <= 90: rot_degree = degree_x
+#     else: rot_degree = -degree_x
+#     return rot_degree
+
 def vector2angle(v):
     """
     input: drag_v - 2d normalized vector
-    output: direction (degree) of image counterclockwise-rotation which makes drag_v equals [1,0]
+    output: direction (degree) of image counterclockwise-rotation which makes v equals [1,0]
     """
     from bpbot.utils import calc_2vectors_angle
     degree_x = calc_2vectors_angle(v, [1,0])
     degree_y = calc_2vectors_angle(v, [0,1])
-    print(degree_x, degree_y)
     if degree_y <= 90: rot_degree = degree_x
-    else: rot_degree = -degree_x+180
+    # from the old function... 
+    else: rot_degree = 360 - degree_x
+    # from often used vector2direction()
+    # else: rot_degree = -degree_x
     return rot_degree
 
 def angle2vector(r, point_to='right'):

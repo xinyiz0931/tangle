@@ -263,12 +263,12 @@ if __name__ == "__main__":
     inp_direction = torch.rand((batch_size,2))
 
     # ----------------------- PickNet ---------------------------- 
-    # # model = PickNet(model_type="fcn", out_channels=2)
-    # model = PickNet(model_type="unet", out_channels=2)
-    # # model = torch.hub.load("pytorch/vision:v0.10.0", "fcn_resnet50", pretrained=True)
-    # # model.load_state_dict(torch.load(model_ckpt))
-    # out = model.forward(inp_img3)
-    # print(f"PickNet: ", out.shape)
+    # model = PickNet(model_type="fcn", out_channels=2)
+    model = PickNet(model_type="unet", out_channels=3)
+    # model = torch.hub.load("pytorch/vision:v0.10.0", "fcn_resnet50", pretrained=True)
+    # model.load_state_dict(torch.load(model_ckpt))
+    out = model.forward(inp_img3)
+    print(f"PickNet: ", out.shape)
 
     # ----------------------- SepNet-P ---------------------------- 
     model = SepNet(out_channels=2)
@@ -277,7 +277,7 @@ if __name__ == "__main__":
 
     # ----------------------- SepNet-D ---------------------------- 
     # ckpt = "C:\\Users\\xinyi\\Documents\\Checkpoint\\try_new_res\\model_epoch_12.pth"
-    ckpt = "C:\\Users\\xinyi\\Documents\\Checkpoint\\try_SR\\model_epoch_99.pth"
+    # ckpt = "C:\\Users\\xinyi\\Documents\\Checkpoint\\try_SR\\model_epoch_99.pth"
     ckpt = "C:\\Users\\xinyi\\Documents\\Checkpoint\\try_sepnet_vector_eight\\model_epoch_10.pth"
     model = SepNetD(in_channels=5, backbone="conv")
     out = model.forward((inp_img5, inp_direction))

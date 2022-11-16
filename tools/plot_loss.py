@@ -8,7 +8,6 @@ import seaborn as sns
 
 sns.set()
 
-
 if __name__ == "__main__":
     
     # read log file
@@ -16,18 +15,19 @@ if __name__ == "__main__":
     # ckpt_path = os.path.join(root_dir, "Checkpoint", "try_retrain_picknet_unet")
     # ckpt_path = os.path.join(root_dir, "Checkpoint", "try_38")
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dir', '-d', help='path to checkchpoint')
+    parser.add_argument('--path', '-p', help='path to .csv file')
     # parser.add_argument('--dir', '-d', default=ckpt_path, help='path to checkchpoint')
     
     args = parser.parse_args()
 
-    if args.dir is not None:
-        log_dir = args.dir
+    if args.path is not None:
+        log_path = args.path
+        log_dir = os.path.split(log_path)[:-1][0]
     else:
         from tangle.config import Config
         config = Config(config_type="train")
         log_dir = config.save_dir
-    log_path = os.path.join(log_dir, 'log.csv')
+        log_path = os.path.join(log_dir, 'log.csv')
 
     # create plot design
     colors = [[ 78.0/255.0,121.0/255.0,167.0/255.0], # 0_blue
@@ -58,21 +58,39 @@ if __name__ == "__main__":
     # load and plot loss
     df = pd.read_csv(log_path)
     # df.insert(0, "epoch", list(range(100)), True)
-    # print(df)
-    df = df[df['epoch'] <= 59]
+    # df = df[df['epoch'] <= 59]
 
-    sns.lineplot(x="epoch", y="train_loss", data=df, label="Train Loss", color=colors[0], linewidth=2)
-    sns.lineplot(x="epoch", y="test_loss", data=df,  label="Test Loss", color=colors[2], linewidth=2)
-    # plt.ylim((0, 1))
-    plt.ylabel('Training loss')
-    plt.xlabel('Number of epochs')   
-    legend =plt.legend(loc='upper right', fontsize=14)
-    frame = legend.get_frame()
-    frame.set_facecolor('white')
-    
-    plt.tight_layout()
-    plt.savefig(os.path.join(log_dir, 'loss.png'))
-    plt.show()
+    if df.get("train_loss") is not None and df.get("test_loss") is not None: 
+        sns.lineplot(x="epoch", y="train_loss", data=df, label="Train Loss", color=colors[0], linewidth=2)
+        sns.lineplot(x="epoch", y="test_loss", data=df,  label="Test Loss", color=colors[2], linewidth=2)
+        # plt.ylim((0, 1))
+        plt.ylabel('Training loss')
+        plt.xlabel('Number of epochs')   
+        legend =plt.legend(loc='upper right', fontsize=14)
+        frame = legend.get_frame()
+        frame.set_facecolor('white')
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(log_dir, 'loss.png'))
+        plt.show()
+
+    elif df.get("acc") is not None: 
+
+        sns.lineplot(x="epoch", y="acc", data=df, label="Acc.", color=colors[1], linewidth=2)
+        # sns.lineplot(x="epoch", y="acc_one", data=df,  label="Acc.+", color=colors[7], linewidth=2)
+        # plt.ylim((0, 1))
+        plt.ylabel('Accuracy')
+        plt.xlabel('Number of epochs')   
+        legend =plt.legend(loc='upper right', fontsize=14)
+        frame = legend.get_frame()
+        frame.set_facecolor('white')
+        
+        plt.tight_layout()
+        plt.ylim([0,1])
+        print(log_dir)
+        plt.savefig(os.path.join(log_dir, 'acc.png'))
+        plt.show()
+
     # create figure
     # ax = plt.axes()
     # ax.set_facecolor("white")

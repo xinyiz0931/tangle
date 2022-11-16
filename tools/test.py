@@ -24,34 +24,9 @@ def np_gauss_2d_batch(img_w, img_h, sigma, locs):
     G = np.exp(-((X-U)**2+(Y-V)**2)/(2.0*sigma**2))
 
 
-    
-
-
-# print("Manually: ", out_m.shape)
-p = np.array([[6,5], [7,4]])
-# p = np.array([[6,5]])
-
-np_gauss_2d_batch(12,10,3,p)
-
-
-
-g = gauss_2d_batch(50, 50, 8, p, use_torch=False)
-print(g.shape)
-# vis = visualize_tensor(g)
-# cv2.imshow("", vis)
-# cv2.waitKey()
-# cv2.destroyAllWindows()
-# print(vis.shape)
-# img_path = "C:\\Users\\xinyi\\Pictures\\t.png"
-# img_path = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\data_final_real\\0001\\depth.png"
-# img = cv2.imread(img_path)
-# g = np.array([[242,340], [140,319]])
-# l = [0,0,0,0,0,0,0,1]
-
-
-# img = draw_vectors_bundle(img, g[0], scores=l)
-# cv2.circle(img, g[0], 7, (0,255,0), -1)
-# cv2.circle(img, g[1], 7, (0,255,255), 2)
-# cv2.imshow("", img)
-# cv2.waitKey()
-# cv2.destroyAllWindows()
+import pandas as pd
+p = "C:\\Users\\xinyi\\Documents\\Checkpoint\\try_action_map_augment_real\\acc.csv"
+df = pd.read_csv(p)
+df = df.drop(df.columns[[0]], axis=1)  
+print(df)
+df.to_csv(p, index=False)
