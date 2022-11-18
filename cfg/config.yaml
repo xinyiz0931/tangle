@@ -29,7 +29,7 @@ infer:
   img_width: 512
   pick_ckpt_folder: [ckpt_picknet, model_epoch_8.pth]
   sep_ckpt_folder: [try_only_pull_action_map, model_epoch_20.pth]
-  sep_ckpt_folder: [try_sep, model_epoch_20.pth]
+  sep_ckpt_folder: [try_sep_mask, model_epoch_20.pth]
 
 validate:
   net: sep_pull
