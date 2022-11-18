@@ -37,7 +37,9 @@ class Inference(object):
                 self.picknet.load_state_dict(torch.load(config.picknet_ckpt,map_location=torch.device("cpu")))  
 
         if "sep" in self.net_type:
+            # ------------------ OLD ---------------------
             self.sepnet = SepNet(in_channels=3, out_channels=1)
+            # ------------------ OLD ---------------------
             if self.use_cuda: 
                 self.sepnet = self.sepnet.cuda()
                 self.sepnet.load_state_dict(torch.load(config.sepnet_ckpt))
@@ -180,7 +182,10 @@ class Inference(object):
                 img_r = rotate_img(img, r)
                 inp_r_t = torch.unsqueeze(self.transform(img_r), 0)
                 inp_r_t = inp_r_t.cuda() if self.use_cuda else inp_r_t
+                # ------------------------- OLD -----------------------
                 pullmap_r_t = self.sepnet.forward(inp_r_t)[0][0]
+                # ------------------------- NEW -----------------------
+                # pullmap_r_t = self.sepnet(inp_r_t)['out'][0][0]
                 pullmap_r = pullmap_r_t.detach().cpu().numpy()
 
                 y, x = np.unravel_index(pullmap_r.argmax(), pullmap_r.shape)
@@ -253,7 +258,7 @@ class Inference(object):
                 # points.append([pred_x, pred_y])
                 vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
-                overlay = cv2.addWeighted(rsz, 0.5, vis, 0.5, 0)
+                overlay = cv2.addWeighted(rsz, 0.65, vis, 0.35, 0)
                 cv2.putText(overlay, str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
                 # overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
                 overlays.append(overlay) 
@@ -277,7 +282,7 @@ class Inference(object):
                 scores.append(h.max())
                 vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
-                overlay = cv2.addWeighted(rot_rsz, 0.5, vis, 0.5, 0)
+                overlay = cv2.addWeighted(rot_rsz, 0.65, vis, 0.35, 0)
                 cv2.putText(overlay, str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
                 overlays.append(overlay) 
             maxid = scores.index(max(scores))
@@ -298,7 +303,7 @@ class Inference(object):
                 # points.append([pred_x, pred_y])
                 vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
-                overlay = cv2.addWeighted(rsz, 0.5, vis, 0.5, 0)
+                overlay = cv2.addWeighted(rsz, 0.65, vis, 0.35, 0)
                 cv2.putText(overlay, str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
                 # overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
                 overlays.append(overlay) 
@@ -320,7 +325,7 @@ class Inference(object):
                 scores.append(h.max())
                 vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
-                overlay = cv2.addWeighted(rot_rsz, 0.5, vis, 0.5, 0)
+                overlay = cv2.addWeighted(rot_rsz, 0.65, vis, 0.35, 0)
                 cv2.putText(overlay, str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
                 overlays.append(overlay) 
             maxid = scores.index(max(scores))
@@ -425,8 +430,8 @@ if __name__ == "__main__":
     # folder = "D:\\dataset\\picknet\\test\\depth0.png"
     folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightAugment\\images\\000161.png"
     folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorVal\\images"
-    folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorVal\\SR"
-    folder = "C:\\Users\\xinyi\\Desktop\\_tmp\\000132.png"
+    # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorVal\\SR"
+    # folder = "C:\\Users\\xinyi\\Desktop\\_tmp"
     # folder = "C:\\Users\\xinyi\\Desktop\\val_image"
     # print(inference.get_image_list(folder))
     # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEight\\images\\000004.png" 
@@ -444,7 +449,7 @@ if __name__ == "__main__":
     # folder = "/home/hlab/Desktop/predicting/tmp5.png"
     
     # saved = "/home/hlab/Desktop"
-    output = inference.infer(data_dir=folder, net_type="pick", show=True)
+    output = inference.infer(data_dir=folder, net_type="sep", show=False)
     # print(output)
     # keys = ["pull_p", "pull_v"]
     for i, d in enumerate(inference.data_list):
@@ -462,8 +467,8 @@ if __name__ == "__main__":
         #     cv2.circle(img, pull_p, 5, (0,255,0), -1)
         #     cv2.arrowedLine(img, pull_p, (pull_p+pull_v * 50).astype(int), (0,255,0), 2)
         #     cv2.imshow("Action: Sep", img)
-        cv2.waitKey()
-        cv2.destroyAllWindows()
+        # cv2.waitKey()
+        # cv2.destroyAllWindows()
         # pull_p = output[2][i]
         # pull_v = output[3][i]
         for k, out in zip(inference.return_keys,output):

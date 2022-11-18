@@ -106,14 +106,14 @@ class SepDataset(Dataset):
         self.data_type = data_type
                 
         images_folder = os.path.join(data_folder, "images")
+        masks_folder = os.path.join(data_folder, "masks")
         positions_path = os.path.join(data_folder, "positions.npy")
 
         data_num = len(os.listdir(images_folder))
         
         self.transform = transforms.Compose([transforms.ToTensor()])
-        self.images = []
+        self.images, self.masks = [], []
         self.positions, self.directions = [], []
-        self.pullmaps = []
         positions = np.load(positions_path)
         
         if data_inds == None:
@@ -122,6 +122,7 @@ class SepDataset(Dataset):
         if data_type == "train":
             for loaded, i in enumerate(data_inds):
                 self.images.append(os.path.join(images_folder, "%06d.png" % i))
+                self.masks.append(os.path.join(masks_folder, "%06d.png" % i))
                 self.positions.append(positions[i])
 
                 print('Loading data: %d / %d' % (loaded, len(data_inds)), end='')
@@ -136,9 +137,16 @@ class SepDataset(Dataset):
         src_img = cv2.imread(self.images[index])
         src_p = self.positions[index]
         src_h, src_w, _ = src_img.shape
+
+        src_msk = cv2.imread(self.masks[index], 0)
+        msk = cv2.resize(src_msk, (self.img_w, self.img_h))
+        
         p = np.array([src_p[0]*self.img_w/src_w, src_p[1]*self.img_h/src_h])
         img = cv2.resize(src_img, (self.img_w, self.img_h))
         inp = self.transform(img)
+        # option 1: mask
+        # out = self.transform(msk)
+        # optiopn 2: gaussian 2d for points
         out = gauss_2d_batch(self.img_w, self.img_h, sigma=8, locs=[p])
 
         return inp, out
@@ -186,12 +194,15 @@ if __name__ == "__main__":
     # inds = random_inds(10, 1000) 
     data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataNew"
     train_dataset = SepDataset(512,512,data_folder)
-    for i, data in enumerate(train_dataset):
+    # i=0
+    # print(train_dataset[1])
+    for data in train_dataset:
         inp, out = data
         print(inp.shape, out.shape)
         inp = visualize_tensor(inp)
         out = visualize_tensor(out, cmap=True)
-        # plt.imshow(inp)
-        # plt.imshow(out, alpha=0.3)
-        # plt.show()
-        if i > 10: break
+        plt.imshow(inp)
+        plt.imshow(out, alpha=0.3)
+        plt.show()
+    #     i+=1
+    #     if i > 10: break

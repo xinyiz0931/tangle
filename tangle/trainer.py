@@ -56,10 +56,13 @@ class Trainer(object):
             test_dataset = PickDataset(img_h, img_w, config.data_dir, test_inds)
 
         elif self.net_type == "sep":
+
+            # ------------------- OLD ---------------------
             self.model = SepNet(in_channels=3, out_channels=1)
             self.criterion = torch.nn.BCELoss()
             self.optim = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate, 
                                           weight_decay=config.weight_decay)
+            # ------------------- OLD ---------------------
             train_dataset = SepDataset(img_w, img_h, config.data_dir,data_inds=train_inds)
             test_dataset = SepDataset(img_w, img_h, config.data_dir, data_inds=test_inds)
 
@@ -92,9 +95,16 @@ class Trainer(object):
             loss = self.criterion(mask_pred, mask_gt.float())
 
         elif self.net_type == 'sep':
+            # -------------------------- OLD ---------------------------
             img, out_gt = sample_batched
             out_pred = self.model(img.float())
             loss = self.criterion(out_pred, out_gt.float())
+            # -------------------------- OLD ---------------------------
+            # revise for fcn
+            # img, out_gt = sample_batched
+            # out_pred = self.model(img.float())['out']
+            # out_pred = out_pred[:, :1] 
+            # loss = self.criterion(out_pred, out_gt.float())
         return loss
 
     def train_epoch(self):

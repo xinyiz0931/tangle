@@ -6,9 +6,10 @@ train:
   backbone: resnet34
   epochs: 100
   use_cuda: True
-  img_height: 256
-  img_width: 256
-  batch_size: 8 
+  img_height: 512
+  img_width: 512
+  loss: bce
+  batch_size: 2 
   learning_rate: 0.001
   momentum: 0.9
   weight_decay: 0.0001
@@ -17,18 +18,18 @@ train:
 
   # dataset: PickDataNew 
   dataset: SepDataNew
-  save_folder: try_sep
+  save_folder: try_sep_gauss2d
 
 infer:
   net_type: pick_sep
   mode: test
-  use_cuda: True 
+  use_cuda: True
   batch_size: 1
   img_height: 512
   img_width: 512
   pick_ckpt_folder: [ckpt_picknet, model_epoch_8.pth]
   sep_ckpt_folder: [try_only_pull_action_map, model_epoch_20.pth]
-  sep_ckpt_folder: [try_sep, model_epoch_21.pth]
+  sep_ckpt_folder: [try_sep, model_epoch_20.pth]
 
 validate:
   net: sep_pull

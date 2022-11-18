@@ -375,59 +375,81 @@ def gen_sepdata_from_pe(source_dir, dest_dir, itvl=16):
     np.save(direction_path, direction_list) 
 
 def gen_simple_sepdata(source_dir, dest_dir, aug_multimplier=1):
+    _images_dir = os.path.join(dest_dir, "_images")
     images_dir = os.path.join(dest_dir, "images")
-    directions_path = os.path.join(dest_dir, "directions.npy")
+    _masks_dir = os.path.join(dest_dir, "_masks")
+    masks_dir = os.path.join(dest_dir, "masks")
+
+    _directions_path = os.path.join(dest_dir, "_directions.npy")
+    _positions_path = os.path.join(dest_dir, "_positions.npy")
     positions_path = os.path.join(dest_dir, "positions.npy")
     
-    for d in [dest_dir, images_dir]:
+    for d in [dest_dir, images_dir, masks_dir, _images_dir, _masks_dir]:
         if not os.path.exists(d): os.mkdir(d)
     
     num = 0 
     num_exist = len(os.listdir(images_dir))
-    positions_list, directions_list = [], []
+    positions_list, _positions_list, _directions_list = [], [], []
     if os.path.exists(positions_path):
         positions_list = np.load(positions_path).tolist()
-    if os.path.exists(directions_path):
-        directions_list = np.load(directions_path).tolist()
+    if os.path.exists(_directions_path):
+        _directions_list = np.load(_directions_path).tolist()
+    if os.path.exists(_positions_path):
+        _positions_list = np.load(_positions_path).tolist()
 
     print(f"[!] Already exists {num_exist} samples! ")
     print(f"[*] Total {len(os.listdir(source_dir))} samples! ")
     for data in os.listdir(source_dir):
         d = os.path.join(source_dir, data)
-        j_path = os.path.join(d, "info.json")
-        if not os.path.join(j_path): continue
-
-        with open(j_path, "r+") as fp: 
-            json_file = json.loads(fp.read())
-        img = cv2.imread(os.path.join(d, "depth.png"))
         
-        pull_p = json_file["point"]
-        pull_v = json_file["vector"]
-        pull_theta = vector2angle(pull_v)
-        # pull_theta = vector2direction(pull_v)
-        # rot_img = rotate_img(img, pull_theta)
-        rot_img, rot_kpt = rotate_img_kpt(img, [pull_p], pull_theta)
-        rot_p = rot_kpt[0].astype(int)
+        # ['281_165_-1.000000_0.000000.png', 'color.png', 'grasp.png', 'mask_0.png', 'mask_1.png', 'pose.txt']
+        img_path = os.path.join(d, os.listdir(d)[0])
+        # img_path = os.path.join(d, "grasp.png")
+        msk_path = os.path.join(d, "mask_target.png")
+        img = cv2.imread(img_path)
+        msk = cv2.imread(msk_path)
+        x,y,vx,vy = os.listdir(d)[0].split("_")
+        x = int(x)
+        y = int(y)
+        vx = float(vx)
+        vy = float(vy[:-4])
+        va = vector2angle([vx,vy])
+        rot_img, rot_p = rotate_img_kpt(img, [[x,y]], va)
+        rot_msk = rotate_img(msk, va) 
+        rot_p = rot_p[0].astype(int)
 
+        _new_img_path = os.path.join(_images_dir, "%06d.png" % (num+num_exist))
+        _new_msk_path = os.path.join(_masks_dir, "%06d.png" % (num+num_exist))
+        new_img_path = os.path.join(images_dir, "%06d.png" % (num+num_exist))
+        new_msk_path = os.path.join(masks_dir, "%06d.png" % (num+num_exist))
+
+        cv2.imwrite(_new_img_path, img)
+        cv2.imwrite(_new_msk_path, msk)
+        cv2.imwrite(new_img_path, rot_img)
+        cv2.imwrite(new_msk_path, rot_msk)
+        _positions_list.append([x,y])
+        _directions_list.append([vx,vy])
+        positions_list.append(rot_p)
         # cv2.circle(rot_img, rot_p, 5, (255,0,0),2)
         # cv2.imshow("", cv2.hconcat([img, rot_img]))
         # cv2.waitKey()
         # cv2.destroyAllWindows()
-        i_list, p_list = augment_simple_data(rot_img, rot_p, aug_multiplier=aug_multimplier)
-        for i_, p_ in zip(i_list, p_list):
-            new_img_path = os.path.join(images_dir, "%06d.png" % (num+num_exist))
-            positions_list.append(p_)
-            directions_list.append(pull_v)
-            # cv2.imwrite(img, new_img_path)
-            cv2.imwrite(new_img_path, i_)
-            num += 1
+        # i_list, p_list = augment_simple_data(rot_img, rot_p, aug_multiplier=aug_multimplier)
+        # for i_, p_ in zip(i_list, p_list):
+        #     new_img_path = os.path.join(images_dir, "%06d.png" % (num+num_exist))
+        #     positions_list.append(p_)
+        #     directions_list.append([vx,vy])
+        #     # cv2.imwrite(new_img_path, i_)
+        #     num += 1
         print('[*] Generating data: %d' % (num), end='')
         print('\r', end='') 
+        num+=1
         # if num > 10: break
 
     print(f"[*] Finish generating {num} samples! ")
-    np.save(positions_path,positions_list)
-    np.save(directions_path, directions_list) 
+    np.save(positions_path, positions_list)
+    np.save(_positions_path, _positions_list)
+    np.save(_directions_path, _directions_list) 
     
 def augment_simple_data(image, position, aug_multiplier=4):
     images_aug = []
@@ -534,5 +556,5 @@ if __name__ == "__main__":
     # ------------- generate data for simplified sepnet --------------
     src_dir = "C:\\Users\\xinyi\\Desktop\\exp"
     dest_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataNew"
-    gen_simple_sepdata(src_dir, dest_dir) 
+    gen_simple_sepdata(src_dir, dest_dir, aug_multimplier=1) 
     

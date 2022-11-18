@@ -16,6 +16,7 @@ class PickNet(nn.Module):
     Output: torch.size([B,2,H,W]) - pick/sep affordance maps
     Usage: 
         model_type = "unet" or "fcn"
+    UNet model from https://github.com/kevinlu1211/pytorch-unet-resnet-50-encoder.git
     """
     DEPTH = 6
     def __init__(self, model_type="unet", out_channels=2):
@@ -264,11 +265,11 @@ if __name__ == "__main__":
 
     # ----------------------- PickNet ---------------------------- 
     # model = PickNet(model_type="fcn", out_channels=2)
-    model = PickNet(model_type="unet", out_channels=3)
+    model = PickNet(model_type="fcn", out_channels=1)
     # model = torch.hub.load("pytorch/vision:v0.10.0", "fcn_resnet50", pretrained=True)
     # model.load_state_dict(torch.load(model_ckpt))
     out = model.forward(inp_img3)
-    print(f"PickNet: ", out.shape)
+    print(f"PickNet: ", out["out"][:,:1,:,:].shape)
 
     # ----------------------- SepNet-P ---------------------------- 
     model = SepNet(out_channels=2)
