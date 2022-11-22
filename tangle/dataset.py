@@ -164,45 +164,51 @@ if __name__ == "__main__":
     PINK_RV = [144,89,244]
 
     # ---------------------- PickNet Dataset -------------------
-    # data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\PickDataNew"
-    # Np, Nn = 0, 0
-    # train_dataset = PickDataset(512,512,data_folder)
-    # for i in range(len(train_dataset)):
-    #     if train_dataset.labels[i] == 1: 
-    #         label = "Label: separate"
-    #     else:
-    #         label = "Label: pick"
-    #     img, msk = train_dataset[i]
-    #     depth = visualize_tensor(img)
-    #     pick_m = visualize_tensor(msk[0])
-    #     sep_m = visualize_tensor(msk[1])
-    #     grasp = visualize_tensor(msk[2],cmap=True)
-    #     pick = cv2.cvtColor(pick_m, cv2.COLOR_GRAY2RGB)
-    #     sep = cv2.cvtColor(sep_m, cv2.COLOR_GRAY2RGB)
-    #     pick[pick_m > 0] = PINK_RV
-    #     sep[sep_m > 0] = BLUE_RV
+    data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\PickDataNew"
+    inds = random_inds(10, 1000) 
+    Np, Nn = 0, 0
+    train_dataset = PickDataset(512,512,data_folder,data_inds=inds)
+    for i in range(len(train_dataset)):
+        if train_dataset.labels[i] == 1: 
+            label = "Label: separate"
+        else:
+            label = "Label: pick"
+        img, msk = train_dataset[i]
+        depth = visualize_tensor(img)
+        pick_m = visualize_tensor(msk[0])
+        sep_m = visualize_tensor(msk[1])
+        grasp = visualize_tensor(msk[2],cmap=True)
 
-    #     pick_map = cv2.addWeighted(depth, 0.5, pick, 0.5, 1)
-    #     sep_map = cv2.addWeighted(depth, 0.5, sep, 0.5, 1)
-    #     grasp_map = cv2.addWeighted(depth, 0.5, grasp, 0.5, 1)
-    #     cv2.imshow(label, cv2.hconcat([depth, pick_map, sep_map, grasp_map]))
-    #     cv2.waitKey()
-    #     cv2.destroyAllWindows()
-    #     if i > 10: break
+        pick_cnt, _ = cv2.findContours(pick_m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+        pick_map=cv2.drawContours(depth,pick_cnt,-1, PINK_RV ,2)  
+        cv2.imshow("", pick_map)
+        
+
+        # pick[pick_m > 0] = PINK_RV
+        # sep[sep_m > 0] = BLUE_RV
+
+        # pick_map = cv2.addWeighted(depth, 0.5, pick, 0.5, 1)
+        # sep_map = cv2.addWeighted(depth, 0.5, sep, 0.5, 1)
+        # grasp_map = cv2.addWeighted(depth, 0.5, grasp, 0.5, 1)
+        # cv2.imshow(label, cv2.hconcat([depth, pick_map, sep_map, grasp_map]))
+        cv2.waitKey()
+        cv2.destroyAllWindows()
+        if i > 10: break
 
     # ---------------------- SepNet-P Dataset -------------------
     # inds = random_inds(10, 1000) 
-    data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataNew"
-    train_dataset = SepDataset(512,512,data_folder)
-    # i=0
-    # print(train_dataset[1])
-    for data in train_dataset:
-        inp, out = data
-        print(inp.shape, out.shape)
-        inp = visualize_tensor(inp)
-        out = visualize_tensor(out, cmap=True)
-        plt.imshow(inp)
-        plt.imshow(out, alpha=0.3)
-        plt.show()
+    # data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataNew"
+    # train_dataset = SepDataset(512,512,data_folder)
+    # # i=0
+    # # print(train_dataset[1])
+    # for data in train_dataset:
+    #     inp, out = data
+    #     print(inp.shape, out.shape)
+    #     inp = visualize_tensor(inp)
+    #     out = visualize_tensor(out, cmap=True)
+    #     plt.imshow(inp)
+    #     plt.imshow(out, alpha=0.3)
+    #     plt.show()
     #     i+=1
     #     if i > 10: break

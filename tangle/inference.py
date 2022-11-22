@@ -226,15 +226,18 @@ class Inference(object):
             save_dir (str, optional): save directory. Defaults to None (path/to/img/preds).
             show (bool, optional): show the plotted heatmaps. Defaults to False. 
         """
+        if net_type is None: net_type = self.net_type
+        
         print("show visulization???", show)
         img = cv2.imread(img_path)
         rsz = cv2.resize(img, (self.img_w, self.img_h))
         s_out = list(os.path.split(img_path))
         s_ret = list(os.path.split(img_path))
-        s_out[-1] = "out_" + s_out[-1]
-        s_ret[-1] = "ret_" + s_ret[-1]
+        # s_out[-1] = "out_" + s_out[-1]
+        s_out[-1] = net_type + "net_" + s_out[-1]
+        # s_ret[-1] = "ret_" + s_ret[-1]
         s_out.insert(-1, "pred")
-        s_ret.insert(-1, "pred")
+        # s_ret.insert(-1, "pred")
 
         if save_dir == None:
             if not os.path.exists(os.path.join(*s_out[:-1])): 
@@ -242,13 +245,12 @@ class Inference(object):
             save_out_path = os.path.join(*s_out)
             if not os.path.exists(os.path.join(*s_ret[:-1])): 
                 os.mkdir(os.path.join(*s_ret[:-1]))
-            save_ret_path = os.path.join(*s_ret)
+            # save_ret_path = os.path.join(*s_ret)
         else: 
             save_out_path = os.path.join(save_dir, s_out[-1])
-            save_ret_path = os.path.join(save_dir, s_ret[-1])
+            # save_ret_path = os.path.join(save_dir, s_ret[-1])
 
         # plot PickNet: preds = (2xHxW)
-        if net_type is None: net_type = self.net_type
 
         if net_type == "pick":
             scores, overlays = [], []
@@ -288,6 +290,8 @@ class Inference(object):
             maxid = scores.index(max(scores))
             cv2.rectangle(overlays[maxid], (0,0),(overlays[maxid].shape[1],overlays[maxid].shape[0]), (0,255,0),5)
             n_col = 4
+            # n_col = 3
+            # overlays.append(np.zeros_like(overlays[0], dtype=np.uint8))
             multi_overlays= []
             for c in np.arange(0,len(overlays),n_col):
                 multi_overlays.append(cv2.hconcat(overlays[c:c+n_col]))
@@ -331,6 +335,9 @@ class Inference(object):
             maxid = scores.index(max(scores))
             cv2.rectangle(overlays[maxid], (0,0),(overlays[maxid].shape[1],overlays[maxid].shape[0]), (0,255,0),5)
             n_col = 4
+            # adjust col number
+            # n_col = 3
+            # overlays.append(np.zeros_like(overlays[0], dtype=np.uint8))
             multi_overlays= []
             for c in np.arange(0,len(overlays),n_col):
                 multi_overlays.append(cv2.hconcat(overlays[c:c+n_col]))
@@ -429,7 +436,7 @@ if __name__ == "__main__":
     
     # folder = "D:\\dataset\\picknet\\test\\depth0.png"
     folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightAugment\\images\\000161.png"
-    folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorVal\\images"
+    folder = "C:\\Users\\xinyi\\Desktop\\_test"
     # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorVal\\SR"
     # folder = "C:\\Users\\xinyi\\Desktop\\_tmp"
     # folder = "C:\\Users\\xinyi\\Desktop\\val_image"

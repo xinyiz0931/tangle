@@ -63,6 +63,10 @@ class Trainer(object):
             self.optim = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate, 
                                           weight_decay=config.weight_decay)
             # ------------------- OLD ---------------------
+            # self.model = PickNet(model_type="unet", out_channels=1)
+            # self.criterion = torch.nn.BCEWithLogitsLoss()
+            # self.optim = torch.optim.SGD(self.model.parameters(), lr=config.learning_rate,
+            #              momentum=config.momentum, weight_decay=config.weight_decay)
             train_dataset = SepDataset(img_w, img_h, config.data_dir,data_inds=train_inds)
             test_dataset = SepDataset(img_w, img_h, config.data_dir, data_inds=test_inds)
 
@@ -89,15 +93,17 @@ class Trainer(object):
         sample_batched = [d.to(self.device) for d in sample_batched]
         if self.net_type == 'pick':
 
-            img, mask_gt = sample_batched
+            # img, mask_gt = sample_batched
             img, mask_gt = sample_batched[0].to(self.device), sample_batched[1].to(self.device)
             mask_pred = self.model(img.float())
             loss = self.criterion(mask_pred, mask_gt.float())
 
         elif self.net_type == 'sep':
             # -------------------------- OLD ---------------------------
-            img, out_gt = sample_batched
+            # img, out_gt = sample_batched
+            img, out_gt = sample_batched[0].to(self.device), sample_batched[1].to(self.device)
             out_pred = self.model(img.float())
+
             loss = self.criterion(out_pred, out_gt.float())
             # -------------------------- OLD ---------------------------
             # revise for fcn
