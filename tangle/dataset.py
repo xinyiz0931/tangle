@@ -28,7 +28,7 @@ class PickDataset(Dataset):
 
         img_folder = os.path.join(data_folder, "images")
         msk_folder = os.path.join(data_folder, "masks")
-        gsp_folder = os.path.join(data_folder, "grasps")
+        # gsp_folder = os.path.join(data_folder, "grasps")
         lbl_path = os.path.join(data_folder, "labels.npy")
 
         self.transform = transforms.Compose([transforms.ToTensor()])
@@ -37,20 +37,21 @@ class PickDataset(Dataset):
         self.images = []
         self.masks = []
         self.labels = []
-        self.grasps = []
+        # self.grasps = []
         if data_type == 'train':
             if data_inds == None:
                 num_inds = len(os.listdir(img_folder))
                 data_inds = random_inds(num_inds, num_inds)
-            for i in data_inds: 
+            for loaded, i in enumerate(data_inds): 
                 self.images.append(os.path.join(img_folder, "%06d.png"%i))
                 self.masks.append(os.path.join(msk_folder, "%06d.png"%i))
-                self.grasps.append(os.path.join(gsp_folder, "%06d.png" % i))
-                self.labels.append(labels[i][0])
+                # self.grasps.append(os.path.join(gsp_folder, "%06d.png" % i))
+                # self.labels.append(labels[i][0])
+                self.labels.append(labels[i])
 
                 # self.points.append(np.asarray([labels[i][1:3],labels[i][4:6]]).astype(int))
                 # self.labels.append(np.load(os.path.join(lbl_folder, "%06d.npy"%i))[0])
-                print('Loading data: %6d / %6d' % (i, len(data_inds)), end='')
+                print('Loading data: %6d / %6d' % (loaded, len(data_inds)), end='')
                 print('\r', end='')
             print(f"Finish loading {len(data_inds)} samples! ") 
         
@@ -68,22 +69,24 @@ class PickDataset(Dataset):
                         
             src_img = cv2.imread(self.images[index])
             src_msk = cv2.imread(self.masks[index], 0)
-            src_gsp = cv2.imread(self.grasps[index], 0)
+            # src_gsp = cv2.imread(self.grasps[index], 0)
             # # check the size
             # src_h, src_w = src_msk.shape
             src_img = cv2.resize(src_img, (self.img_w, self.img_h))
             src_msk = cv2.resize(src_msk, (self.img_w, self.img_h))
-            src_gsp = cv2.resize(src_gsp, (self.img_w, self.img_h))
+            # src_gsp = cv2.resize(src_gsp, (self.img_w, self.img_h))
 
             black = np.zeros((self.img_h,self.img_w), dtype=np.uint8)
             
             if self.labels[index] == 0:
                 img = self.transform(src_img)
-                msk = self.transform(np.stack([src_msk, black, src_gsp], 2))
+                msk = self.transform(np.stack([src_msk, black], 2))
+                # msk = self.transform(np.stack([src_msk, black, src_gsp], 2))
                 
             else:
                 img = self.transform(src_img)
-                msk = self.transform(np.stack([black, src_msk, src_gsp], 2))
+                msk = self.transform(np.stack([black, src_msk], 2))
+                # msk = self.transform(np.stack([black, src_msk, src_gsp], 2))
             return img, msk
 
         elif self.data_type == 'test':
@@ -164,51 +167,45 @@ if __name__ == "__main__":
     PINK_RV = [144,89,244]
 
     # ---------------------- PickNet Dataset -------------------
-    data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\PickDataNew"
-    inds = random_inds(10, 1000) 
-    Np, Nn = 0, 0
-    train_dataset = PickDataset(512,512,data_folder,data_inds=inds)
-    for i in range(len(train_dataset)):
-        if train_dataset.labels[i] == 1: 
-            label = "Label: separate"
-        else:
-            label = "Label: pick"
-        img, msk = train_dataset[i]
-        depth = visualize_tensor(img)
-        pick_m = visualize_tensor(msk[0])
-        sep_m = visualize_tensor(msk[1])
-        grasp = visualize_tensor(msk[2],cmap=True)
+    # data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\PickDataNew"
+    # inds = random_inds(10, 80000) 
+    # Np, Nn = 0, 0
+    # train_dataset = PickDataset(512,512,data_folder)
+    # for i in range(len(train_dataset)):
+    #     img, msk = train_dataset[i]
+    #     depth = visualize_tensor(img)
+    #     pick_m = visualize_tensor(msk[0])
+    #     sep_m = visualize_tensor(msk[1])
+    #     # grasp = visualize_tensor(msk[2],cmap=True)
 
-        pick_cnt, _ = cv2.findContours(pick_m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    #     if train_dataset.labels[i] == 1: 
+    #         label = "Label: separate"
+    #         sep_cnt, _ = cv2.findContours(sep_m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    #         heatmap=cv2.drawContours(depth,sep_cnt,-1, BLUE_RV ,2)  
+    #     else:
+    #         label = "Label: pick"
+    #         pick_cnt, _ = cv2.findContours(pick_m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    #         heatmap=cv2.drawContours(depth,pick_cnt,-1, PINK_RV ,2)  
 
-        pick_map=cv2.drawContours(depth,pick_cnt,-1, PINK_RV ,2)  
-        cv2.imshow("", pick_map)
-        
-
-        # pick[pick_m > 0] = PINK_RV
-        # sep[sep_m > 0] = BLUE_RV
-
-        # pick_map = cv2.addWeighted(depth, 0.5, pick, 0.5, 1)
-        # sep_map = cv2.addWeighted(depth, 0.5, sep, 0.5, 1)
-        # grasp_map = cv2.addWeighted(depth, 0.5, grasp, 0.5, 1)
-        # cv2.imshow(label, cv2.hconcat([depth, pick_map, sep_map, grasp_map]))
-        cv2.waitKey()
-        cv2.destroyAllWindows()
-        if i > 10: break
+    #     cv2.imshow(label, heatmap)
+    #     cv2.waitKey()
+    #     cv2.destroyAllWindows()
+    #     if i > 10: break
 
     # ---------------------- SepNet-P Dataset -------------------
     # inds = random_inds(10, 1000) 
     # data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataNew"
-    # train_dataset = SepDataset(512,512,data_folder)
-    # # i=0
-    # # print(train_dataset[1])
-    # for data in train_dataset:
-    #     inp, out = data
-    #     print(inp.shape, out.shape)
-    #     inp = visualize_tensor(inp)
-    #     out = visualize_tensor(out, cmap=True)
-    #     plt.imshow(inp)
-    #     plt.imshow(out, alpha=0.3)
-    #     plt.show()
-    #     i+=1
-    #     if i > 10: break
+    data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataNewAug"
+    train_dataset = SepDataset(512,512,data_folder)
+    i=0
+    # print(train_dataset[1])
+    for data in train_dataset:
+        inp, out = data
+        print(inp.shape, out.shape)
+        inp = visualize_tensor(inp)
+        out = visualize_tensor(out, cmap=True)
+        plt.imshow(inp)
+        plt.imshow(out, alpha=0.3)
+        plt.show()
+        i+=1
+        if i > 10: break

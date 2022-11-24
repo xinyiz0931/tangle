@@ -13,16 +13,26 @@ from imgaug.augmentables.heatmaps import HeatmapsOnImage
 from tangle.utils import *
 from bpbot.utils import *
 
-AUG_SEQ = iaa.Sequential([
-    iaa.Flipud(0.3),
+seq = iaa.Sequential([
     iaa.Affine(
         scale=(0.9,1.1),
         shear=(-10,10),
-        rotate=(-10,10)
+        rotate=(-180,180)
     ),
-    iaa.Sometimes(0.5, iaa.GammaContrast((0.75, 1.5))),
-    iaa.Sometimes(0.5, iaa.ElasticTransformation(alpha=0.5, sigma=0.5))
-])
+    # iaa.Sometimes(0.5, iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.01*255), per_channel=0.1)),
+    # iaa.Sometimes(0.5, iaa.GammaContrast((0.5, 2.0))),
+    # iaa.Sometimes(0.5, iaa.ElasticTransformation(alpha=1, sigma=1))
+    ])
+# seq = iaa.Sequential([])
+seq_noise_only = iaa.Sequential([
+    iaa.Affine(
+        scale=(0.9,1.1),
+        shear=(-10,10),
+    ),
+    iaa.Sometimes(0.5, iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.01*255), per_channel=0.1)),
+    iaa.Sometimes(0.5, iaa.GammaContrast((0.5, 2.0))),
+    iaa.Sometimes(0.5, iaa.ElasticTransformation(alpha=1, sigma=1))
+    ])
 
 def transfer_and_refine(solution_dir, source_dir):
     from bpbot.grasping import Gripper
@@ -38,8 +48,8 @@ def transfer_and_refine(solution_dir, source_dir):
         b = np.loadtxt(os.path.join(source_dir, i, "pose.txt"))
         poses_src.append(b[0])
     dict = {}
-    for i, pi in enumerate(poses_sln):
-        for j, pj in enumerate(poses_src):
+    for i, pi in eNerate(poses_sln):
+        for j, pj in eNerate(poses_src):
             if np.all(pi==pj)==True: 
                 scene_no = os.listdir(source_dir)[j]
                 sln_no = os.listdir(solution_dir)[i]
@@ -129,10 +139,9 @@ def transfer_and_refine(solution_dir, source_dir):
             pos_list.append([grasp_rect_center[0], grasp_rect_center[1], 
                         hold_p_mask_center[0],hold_p_mask_center[1]])
 
-
         # print(dict[s])
         # print(pos_list, rot_list)
-        num = 0
+        N = 0
         grasps, directions, solutions = [], [], []
         for p in pos_list:
             if not p in grasps:
@@ -141,7 +150,7 @@ def transfer_and_refine(solution_dir, source_dir):
         for g in grasps:
             _rot = []
             _sln = []
-            for index, p in enumerate(pos_list):
+            for index, p in eNerate(pos_list):
                 if g == p: 
                     if not rot_list[index] in _rot:
                         _rot.append(rot_list[index])
@@ -161,7 +170,7 @@ def transfer_and_refine(solution_dir, source_dir):
         # jf.close()
 
 def vis_solution(source_dir, dest_dir):
-    num = 0
+    N = 0
     if not os.path.exists(dest_dir): os.mkdir(dest_dir)
     itvl = 16
     for s in os.listdir(source_dir):
@@ -173,7 +182,7 @@ def vis_solution(source_dir, dest_dir):
             grasps = json_file["pullhold"]
             directions = json_file["angle"]
 
-            for i, g in enumerate(grasps):
+            for i, g in eNerate(grasps):
                 drawn = img.copy()
                 
                 for j in range(itvl):
@@ -184,29 +193,42 @@ def vis_solution(source_dir, dest_dir):
                         draw_vector(drawn, (g[0], g[1]), direction2vector(r), 40, arrow_thinkness=1,color=(0,0,255))
                 drawn = cv2.circle(drawn, (g[0],g[1]),7,(0,255,0),-1)
                 # drawn = cv2.circle(drawn, (g[2],g[3]),7,(0,255,0),-1)
-                save_path = os.path.join(dest_dir, "%06d.png"%num)
+                save_path = os.path.join(dest_dir, "%06d.png"%N)
                 cv2.imwrite(save_path, drawn)
-                num += 1
+                N += 1
                 #cv2.imshow(s, drawn)
                 #cv2.waitKey(0)
                 #cv2.destroyAllWindows()
+
+def simplify_source_data(source_dir, dest_dir):
+    for data in os.listdir(source_dir):
+        
+        d = os.path.join(source_dir, data)
+        json_path = os.path.join(d, "info.json")
+        with open(json_path, 'r+') as f:
+            j = json.loads(f.read())
+        
+        x = j["pick"]["point"][0]
+        y = j["pick"]["point"][1]
+        theta = j["pick"]["angle"]
+        if "drag" in j: label = 1
+        else: label = 0
+
+        info = f"{label}_{x}_{y}_{theta}"
+        img_path = os.path.join(d, "depth.png")
+        msk_path = os.path.join(d, "mask_target.png")
+        gsp_path = os.path.join(d, "grasp.png")
+
+        new_img_path = os.path.join(dest_dir, info+'.png')
+        new_msk_path = os.path.join(dest_dir, info+'_m.png')
+        new_gsp_path = os.path.join(dest_dir, info+'_g.png')
+
+        shutil.copyfile(img_path, new_img_path)
+        shutil.copyfile(msk_path, new_msk_path)
+        # shutil.copyfile(gsp_path, new_gsp_path)
 def gen_pickdata(source_dir, dest_dir, aug_multiplier=1):
 
-    seq = iaa.Sequential([
-        iaa.Affine(
-            scale=(0.9,1.1),
-            shear=(-10,10),
-            rotate=(-180,180)
-        ),
-        iaa.Sometimes(0.5, iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.01*255), per_channel=0.1)),
-        iaa.Sometimes(0.5, iaa.GammaContrast((0.5, 2.0))),
-        iaa.Sometimes(0.5, iaa.ElasticTransformation(alpha=1, sigma=1))
-        ])
-    seq_noise_only = iaa.Sequential([
-        iaa.Sometimes(0.5, iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.01*255), per_channel=0.1)),
-        iaa.Sometimes(0.5, iaa.GammaContrast((0.5, 2.0))),
-        iaa.Sometimes(0.5, iaa.ElasticTransformation(alpha=1, sigma=1))
-        ])
+
     images_dir = os.path.join(dest_dir, "images")
     masks_dir = os.path.join(dest_dir, "masks")
     grasps_dir = os.path.join(dest_dir, "grasps")
@@ -225,7 +247,6 @@ def gen_pickdata(source_dir, dest_dir, aug_multiplier=1):
 
     print(f"[!] Already exists {N_exist} samples! ") 
     print(f"[*] Total {len(os.listdir(source_dir))} samples! ")
-
     for data in os.listdir(source_dir):
         d = os.path.join(source_dir, data)
         json_path = os.path.join(d, "info.json")
@@ -247,7 +268,7 @@ def gen_pickdata(source_dir, dest_dir, aug_multiplier=1):
             heatmap = np.stack([msk, gsp], 2)
             heatmap = HeatmapsOnImage(heatmap, shape=img.shape)
             
-            for _ in range(10):
+            for _ in range(aug_multiplier):
                 # images_aug = seq(images=images)
                 # image_aug, segmaps_aug = seq(image=images, segmentation_maps=segmaps)
                 img_, masks_ = seq(image=img, heatmaps=heatmap)
@@ -260,9 +281,9 @@ def gen_pickdata(source_dir, dest_dir, aug_multiplier=1):
                 new_msk_path = os.path.join(masks_dir, "%06d.png" % (N+N_exist))
                 new_gsp_path = os.path.join(grasps_dir, "%06d.png" % (N+N_exist))
 
-                cv2.imwrite(new_img_path, img_)
-                cv2.imwrite(new_msk_path, msk_)
-                cv2.imwrite(new_gsp_path, gsp_)
+                # cv2.imwrite(new_img_path, img_)
+                # cv2.imwrite(new_msk_path, msk_)
+                # cv2.imwrite(new_gsp_path, gsp_)
                 N += 1 
                 labels.append([1, p[0],p[1], theta])
         else:
@@ -271,16 +292,98 @@ def gen_pickdata(source_dir, dest_dir, aug_multiplier=1):
             new_img_path = os.path.join(images_dir, "%06d.png" % (N+N_exist))
             new_msk_path = os.path.join(masks_dir, "%06d.png" % (N+N_exist))
             new_gsp_path = os.path.join(grasps_dir, "%06d.png" % (N+N_exist))
-            cv2.imwrite(new_img_path, img)
-            cv2.imwrite(new_msk_path, msk)
-            cv2.imwrite(new_gsp_path, gsp)
+
+            # cv2.imwrite(new_img_path, img)
+            # cv2.imwrite(new_msk_path, msk)
+            # cv2.imwrite(new_gsp_path, gsp)
             N += 1
             labels.append([0, p[0],p[1], theta])
         # if N > 5: break
         print("Transfer data: %6d" % N, end='')
         print('\r', end='')
-    np.save(labels_path, labels)
+    # np.save(labels_path, labels)
     
+def gen_simple_pickdata(source_dir, dest_dir, type="pick", aug_multiplier=1):
+    images_dir = os.path.join(dest_dir, "images")
+    masks_dir = os.path.join(dest_dir, "masks")
+    labels_path = os.path.join(dest_dir, "labels.npy")
+
+    for d in [images_dir, masks_dir]:
+        if not os.path.exists(d): os.mkdir(d)
+    N = 0
+    N_exist = len(os.listdir(images_dir))
+    if os.path.exists(labels_path):
+        labels = np.load(labels_path).tolist()
+    else:
+        labels = []
+
+    print(f"[!] Already exists {N_exist} samples! ") 
+    print(f"[*] Total {len(os.listdir(source_dir))} samples! ")
+
+    if type == "pick":
+        for data in os.listdir(source_dir):
+            d = os.path.join(source_dir, data)
+            json_path = os.path.join(d, "info.json")
+            with open(json_path, "r+") as f:
+                j = json.loads(f.read())
+            p = j["pick"]["point"]
+            theta = j["pick"]["angle"]
+            img = cv2.imread(os.path.join(d, "depth.png"))
+            # img_h, img_w, _ = img.shape
+            msk = cv2.imread(os.path.join(d, "mask_target.png"), 0)
+
+            if "drag" in j:
+                # negative samples: augment 10x
+                msk = cv2.normalize(msk, None, 0, 1, cv2.NORM_MINMAX).astype(np.float32)
+                heatmap = HeatmapsOnImage(msk, shape=img.shape)
+                for _ in range(aug_multiplier):
+                    img_, masks_ = seq(image=img, heatmaps=heatmap)
+                    msk_ = cv2.normalize(masks_.get_arr(), None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+                    new_img_path = os.path.join(images_dir, "%06d.png" % (N+N_exist))
+                    new_msk_path = os.path.join(masks_dir, "%06d.png" % (N+N_exist))
+
+                    cv2.imwrite(new_img_path, img_)
+                    cv2.imwrite(new_msk_path, msk_)
+                    N += 1 
+                    labels.append(0)
+            else:
+                # positive samples: randomly add noise
+                img = seq_noise_only(image=img)
+                new_img_path = os.path.join(images_dir, "%06d.png" % (N+N_exist))
+                new_msk_path = os.path.join(masks_dir, "%06d.png" % (N+N_exist))
+
+                cv2.imwrite(new_img_path, img)
+                cv2.imwrite(new_msk_path, msk)
+                N += 1
+                labels.append(0)
+            print("Transfer data: %6d" % N, end='')
+            print('\r', end='')
+    
+    elif type == "sep":
+        for data in os.listdir(source_dir):
+            d = os.path.join(source_dir, data)
+            img = cv2.imread(os.path.join(d, os.listdir(d)[0]))
+            for msk_path in [x for x in os.listdir(d) if "mask" in x and not "target" in x]:
+                msk = cv2.imread(os.path.join(d, msk_path), 0)
+                
+                msk = cv2.normalize(msk, None, 0, 1, cv2.NORM_MINMAX).astype(np.float32)
+                heatmap = HeatmapsOnImage(msk, shape=img.shape)
+                for _ in range(aug_multiplier):
+                    img_, masks_ = seq(image=img, heatmaps=heatmap)
+                    msk_ = cv2.normalize(masks_.get_arr(), None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+                    new_img_path = os.path.join(images_dir, "%06d.png" % (N+N_exist))
+                    new_msk_path = os.path.join(masks_dir, "%06d.png" % (N+N_exist))
+
+                    cv2.imwrite(new_img_path, img_)
+                    cv2.imwrite(new_msk_path, msk_)
+                    labels.append(1)
+                    N += 1 
+                
+                print("Transfer data: %6d" % N, end='')
+                print('\r', end='')
+
+    np.save(labels_path, labels)
+
 def gen_sepdata_from_pe(source_dir, dest_dir, itvl=16):
     """
     Generate dastaset from only calculated data, using directory/.json
@@ -302,8 +405,8 @@ def gen_sepdata_from_pe(source_dir, dest_dir, itvl=16):
     if not os.path.exists(dest_dir): os.mkdir(dest_dir)
     if not os.path.exists(images_dir): os.mkdir(images_dir)
     
-    num = 0
-    num_exist = len(os.listdir(images_dir))
+    N = 0
+    N_exist = len(os.listdir(images_dir))
     
     if os.path.exists(positions_path):
         positions_list = np.load(positions_path).tolist()
@@ -340,7 +443,7 @@ def gen_sepdata_from_pe(source_dir, dest_dir, itvl=16):
                     if r in degrees:
                         l[j] = 1
             else: 
-                for i, g in enumerate(grasps):
+                for i, g in eNerate(grasps):
                     g = np.reshape(g, (2,2))
                     for j in range(itvl):
                         r = j*(360/itvl)
@@ -358,18 +461,18 @@ def gen_sepdata_from_pe(source_dir, dest_dir, itvl=16):
         i_list, g_list, l_list = augment_data(image=img, grasp=g, label=l, aug_rot_itvl=1, aug_multiplier=1) 
         # i_list, g_list, l_list = augment_data(image=img, grasp=g, label=l, aug_rot_itvl=4, aug_multiplier=3) 
         for i_, g_, l_ in zip(i_list, g_list, l_list):
-            new_img_path = os.path.join(images_dir, "%06d.png" % (num+num_exist))
+            new_img_path = os.path.join(images_dir, "%06d.png" % (N+N_exist))
             positions_list.append(g_)
             labels_list.append(l_)
             cv2.imwrite(new_img_path, i_)
-            num += 1
-            print('[*] Generating data: %d' % (num), end='')
+            N += 1
+            print('[*] Generating data: %d' % (N), end='')
             print('\r', end='') 
-        #     if num >= 20: break
-        # if num >= 20: break
+        #     if N >= 20: break
+        # if N >= 20: break
 
-    print(f"[*] Finish generating {num} samples! ")
-            # if num % 100 == 0: print(f"Transferred {num} samples! ")
+    print(f"[*] Finish generating {N} samples! ")
+            # if N % 100 == 0: print(f"Transferred {N} samples! ")
     np.save(positions_path,positions_list)
     np.save(labels_path, labels_list)
     np.save(direction_path, direction_list) 
@@ -387,8 +490,8 @@ def gen_simple_sepdata(source_dir, dest_dir, aug_multimplier=1):
     for d in [dest_dir, images_dir, masks_dir, _images_dir, _masks_dir]:
         if not os.path.exists(d): os.mkdir(d)
     
-    num = 0 
-    num_exist = len(os.listdir(images_dir))
+    N = 0 
+    N_exist = len(os.listdir(images_dir))
     positions_list, _positions_list, _directions_list = [], [], []
     if os.path.exists(positions_path):
         positions_list = np.load(positions_path).tolist()
@@ -397,8 +500,8 @@ def gen_simple_sepdata(source_dir, dest_dir, aug_multimplier=1):
     if os.path.exists(_positions_path):
         _positions_list = np.load(_positions_path).tolist()
 
-    print(f"[!] Already exists {num_exist} samples! ")
-    print(f"[*] Total {len(os.listdir(source_dir))} samples! ")
+    print(f"[!] Already exists {N_exist} samples! ")
+    print(f"[*] Total {len(os.listdir(source_dir)) * aug_multimplier} samples! ")
     for data in os.listdir(source_dir):
         d = os.path.join(source_dir, data)
         
@@ -418,35 +521,38 @@ def gen_simple_sepdata(source_dir, dest_dir, aug_multimplier=1):
         rot_msk = rotate_img(msk, va) 
         rot_p = rot_p[0].astype(int)
 
-        _new_img_path = os.path.join(_images_dir, "%06d.png" % (num+num_exist))
-        _new_msk_path = os.path.join(_masks_dir, "%06d.png" % (num+num_exist))
-        new_img_path = os.path.join(images_dir, "%06d.png" % (num+num_exist))
-        new_msk_path = os.path.join(masks_dir, "%06d.png" % (num+num_exist))
+        # augmentatiaon
+        sgmap = SegmentationMapsOnImage(rot_msk, shape=rot_img.shape)
+        kpt = KeypointsOnImage([Keypoint(x=rot_p[0],y=rot_p[1])], shape=rot_img.shape)
+        for _ in range(aug_multimplier):
+            img_aug, kpt_aug, sgmap_aug = seq_noise_only(image=rot_img, keypoints=kpt, segmentation_maps=sgmap)
+            pos_aug = np.array([kpt_aug[0].x, kpt_aug[0].y], dtype=int)
+            msk_aug = cv2.normalize(sgmap_aug.get_arr(), None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8) 
 
-        cv2.imwrite(_new_img_path, img)
-        cv2.imwrite(_new_msk_path, msk)
-        cv2.imwrite(new_img_path, rot_img)
-        cv2.imwrite(new_msk_path, rot_msk)
-        _positions_list.append([x,y])
-        _directions_list.append([vx,vy])
-        positions_list.append(rot_p)
-        # cv2.circle(rot_img, rot_p, 5, (255,0,0),2)
-        # cv2.imshow("", cv2.hconcat([img, rot_img]))
-        # cv2.waitKey()
-        # cv2.destroyAllWindows()
-        # i_list, p_list = augment_simple_data(rot_img, rot_p, aug_multiplier=aug_multimplier)
-        # for i_, p_ in zip(i_list, p_list):
-        #     new_img_path = os.path.join(images_dir, "%06d.png" % (num+num_exist))
-        #     positions_list.append(p_)
-        #     directions_list.append([vx,vy])
-        #     # cv2.imwrite(new_img_path, i_)
-        #     num += 1
-        print('[*] Generating data: %d' % (num), end='')
+            # drawn =draw_mask(img_aug, msk_aug, color='blue')  
+            # cv2.circle(img_aug, pos_aug, 7, (0,255,0), -1)
+            # cv2.imshow("", drawn)
+            # cv2.waitKey()
+            # cv2.destroyAllWindows()
+
+            _new_img_path = os.path.join(_images_dir, "%06d.png" % (N+N_exist))
+            _new_msk_path = os.path.join(_masks_dir, "%06d.png" % (N+N_exist))
+            new_img_path = os.path.join(images_dir, "%06d.png" % (N+N_exist))
+            new_msk_path = os.path.join(masks_dir, "%06d.png" % (N+N_exist))
+            _positions_list.append([x,y])
+            _directions_list.append([vx,vy])
+            positions_list.append(pos_aug)
+            cv2.imwrite(_new_img_path, img)
+            cv2.imwrite(_new_msk_path, msk)
+            cv2.imwrite(new_img_path, img_aug)
+            cv2.imwrite(new_msk_path, msk_aug)
+
+            N += 1
+
+        print('[*] Generating data: %d' % (N), end='')
         print('\r', end='') 
-        num+=1
-        # if num > 10: break
 
-    print(f"[*] Finish generating {num} samples! ")
+    print(f"[*] Finish generating {N} samples! ")
     np.save(positions_path, positions_list)
     np.save(_positions_path, _positions_list)
     np.save(_directions_path, _directions_list) 
@@ -547,14 +653,35 @@ if __name__ == "__main__":
     # src_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\TangleData"
     # aug_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\PickDataNew"
     # for _s in os.listdir(src_dir):
-    #     if "_C" in _s or "_E" in _s:
+    #     if "_C" in _s or "_E" in _s or "NEW" in _s:
     #         continue
     #     _src_dir = os.path.join(src_dir, _s)
-    #     print("----", _src_dir, " => ", aug_dir, "----")
+    #     print('----------------------------------------')
+    #     print('|  ', _src_dir, '\n|=>', aug_dir)
     #     gen_pickdata(_src_dir, aug_dir)
+    #     print('----------------------------------------')
     
+    # ------------- Simplify pick data: remove json and rename--------------
+    # # from exp
+    # src_dir = "C:\\Users\\xinyi\\Desktop\\exp"
+    # dest_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\PickDataNew"
+    # gen_simple_pickdata(src_dir, dest_dir, type="sep", aug_multiplier=1) 
+
+    # # from TangleData
+    # src_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\TangleData"
+    # dest_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\PickDataNew"
+    # for _s in os.listdir(src_dir):
+    #     if "_C" in _s or "_E" in _s or "NEW" in _s or "NEW" in _s:
+    #         continue
+    #     _src_dir = os.path.join(src_dir, _s)
+    #     print('----------------------------------------')
+    #     print('|  ', _src_dir, '\n|=>', dest_dir)
+    #     gen_simple_pickdata(_src_dir, dest_dir)
+    #     print('----------------------------------------')
+
+
     # ------------- generate data for simplified sepnet --------------
     src_dir = "C:\\Users\\xinyi\\Desktop\\exp"
-    dest_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataNew"
-    gen_simple_sepdata(src_dir, dest_dir, aug_multimplier=1) 
+    dest_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataNewAug"
+    gen_simple_sepdata(src_dir, dest_dir, aug_multimplier=4) 
     

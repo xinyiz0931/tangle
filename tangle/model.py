@@ -89,8 +89,8 @@ class SepNet(nn.Module):
     def __init__(self, out_channels, in_channels=3, backbone=""):
         super(SepNet, self).__init__()
         self.out_channels = out_channels
-        from tangle.model_parts import resnet34
-        resnet = resnet34(fully_conv=True,
+        from tangle.model_parts import resnet34, resnet18
+        resnet = resnet18(fully_conv=True,
                                        pretrained=True,
                                        output_stride=8,
                                        remove_avg_pool_layer=True)

@@ -96,7 +96,19 @@ def gauss_2d_batch(img_w, img_h, sigma, locs, use_torch=True, use_cuda=False):
         X,Y = np.meshgrid(np.arange(0, img_w), np.arange(0, img_h))
         G = np.exp(-((X-U)**2+(Y-V)**2)/(2.0*sigma**2))
         return G
-        
+
+def draw_mask(img, msk, color='g'):
+    if color == 'g': bgr = [0,255,0]
+    elif color == 'b' or color == "blue": bgr = [255,102,51]
+    elif color == 'pink': bgr = [144,89,244]
+
+    if len(msk.shape) == 3:
+        msk = cv2.cvtColor(msk, cv2.COLOR_BGR2GRAY)
+    
+    cnt, _ = cv2.findContours(msk, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    drawn = cv2.drawContours(img,cnt,-1,bgr,2)  
+    return drawn
+
 def tensor_to_image(img_t, cmap=False):
     """
     input: img_t - torch.Size([img_w, img_h])

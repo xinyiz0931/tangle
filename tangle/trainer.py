@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tangle.utils import *
-from tangle import PickNet, SepNet, SepNetD 
+from tangle import PickNet, SepNet
 from tangle import PickDataset, SepDataset
 
 class Trainer(object):
@@ -46,7 +46,7 @@ class Trainer(object):
         else: os.mkdir(self.out_dir)
 
         if self.net_type == 'pick':
-            self.model = PickNet(model_type='unet', out_channels=3)
+            self.model = PickNet(model_type='unet', out_channels=2)
             # self.criterion = torch.nn.MSELoss()
             # self.criterion = torch.nn.BCELoss()
             self.criterion = torch.nn.BCEWithLogitsLoss()

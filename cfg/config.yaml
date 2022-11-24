@@ -9,16 +9,16 @@ train:
   img_height: 512
   img_width: 512
   loss: bce
-  batch_size: 2 
+  batch_size: 2
   learning_rate: 0.001
   momentum: 0.9
   weight_decay: 0.0001
   num_workers: 0
   test_ratio: 0.15
 
-  # dataset: PickDataNew 
-  dataset: SepDataNew
-  save_folder: try_sep_gauss2d_gauss2d
+  dataset: SepDataNewAug
+  # dataset: SepDataNew
+  save_folder: try_sep_gauss2d_aug
 
 infer:
   net_type: pick_sep
