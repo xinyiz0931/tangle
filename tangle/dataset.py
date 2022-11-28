@@ -167,45 +167,46 @@ if __name__ == "__main__":
     PINK_RV = [144,89,244]
 
     # ---------------------- PickNet Dataset -------------------
-    # data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\PickDataNew"
-    # inds = random_inds(10, 80000) 
-    # Np, Nn = 0, 0
-    # train_dataset = PickDataset(512,512,data_folder)
-    # for i in range(len(train_dataset)):
-    #     img, msk = train_dataset[i]
-    #     depth = visualize_tensor(img)
-    #     pick_m = visualize_tensor(msk[0])
-    #     sep_m = visualize_tensor(msk[1])
-    #     # grasp = visualize_tensor(msk[2],cmap=True)
+    data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\PickDataNew"
+    inds = random_inds(10, 80000) 
+    Np, Nn = 0, 0
+    train_dataset = PickDataset(512,512,data_folder)
+    print(len(train_dataset))
+    for i in range(len(train_dataset)):
+        img, msk = train_dataset[i]
+        depth = visualize_tensor(img)
+        pick_m = visualize_tensor(msk[0])
+        sep_m = visualize_tensor(msk[1])
+        # grasp = visualize_tensor(msk[2],cmap=True)
 
-    #     if train_dataset.labels[i] == 1: 
-    #         label = "Label: separate"
-    #         sep_cnt, _ = cv2.findContours(sep_m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    #         heatmap=cv2.drawContours(depth,sep_cnt,-1, BLUE_RV ,2)  
-    #     else:
-    #         label = "Label: pick"
-    #         pick_cnt, _ = cv2.findContours(pick_m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    #         heatmap=cv2.drawContours(depth,pick_cnt,-1, PINK_RV ,2)  
+        if train_dataset.labels[i] == 1: 
+            label = "Label: separate"
+            sep_cnt, _ = cv2.findContours(sep_m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            heatmap=cv2.drawContours(depth,sep_cnt,-1, BLUE_RV ,2)  
+        else:
+            label = "Label: pick"
+            pick_cnt, _ = cv2.findContours(pick_m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            heatmap=cv2.drawContours(depth,pick_cnt,-1, PINK_RV ,2)  
 
-    #     cv2.imshow(label, heatmap)
-    #     cv2.waitKey()
-    #     cv2.destroyAllWindows()
-    #     if i > 10: break
+        cv2.imshow(label, heatmap)
+        cv2.waitKey()
+        cv2.destroyAllWindows()
+        if i > 10: break
 
     # ---------------------- SepNet-P Dataset -------------------
     # inds = random_inds(10, 1000) 
     # data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataNew"
-    data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataNewAug"
-    train_dataset = SepDataset(512,512,data_folder)
-    i=0
-    # print(train_dataset[1])
-    for data in train_dataset:
-        inp, out = data
-        print(inp.shape, out.shape)
-        inp = visualize_tensor(inp)
-        out = visualize_tensor(out, cmap=True)
-        plt.imshow(inp)
-        plt.imshow(out, alpha=0.3)
-        plt.show()
-        i+=1
-        if i > 10: break
+    # data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataNewAug"
+    # train_dataset = SepDataset(512,512,data_folder)
+    # i=0
+    # # print(train_dataset[1])
+    # for data in train_dataset:
+    #     inp, out = data
+    #     print(inp.shape, out.shape)
+    #     inp = visualize_tensor(inp)
+    #     out = visualize_tensor(out, cmap=True)
+    #     plt.imshow(inp)
+    #     plt.imshow(out, alpha=0.3)
+    #     plt.show()
+    #     i+=1
+    #     if i > 10: break

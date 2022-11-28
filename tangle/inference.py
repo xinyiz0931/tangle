@@ -436,7 +436,7 @@ if __name__ == "__main__":
     
     # folder = "D:\\dataset\\picknet\\test\\depth0.png"
     folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightAugment\\images\\000161.png"
-    folder = "C:\\Users\\xinyi\\Desktop\\_test"
+    folder = "C:\\Users\\xinyi\\Desktop\\_test\\000000.png"
     # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorVal\\SR"
     # folder = "C:\\Users\\xinyi\\Desktop\\_tmp"
     # folder = "C:\\Users\\xinyi\\Desktop\\val_image"
