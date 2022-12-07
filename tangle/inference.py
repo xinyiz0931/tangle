@@ -98,6 +98,7 @@ class Inference(object):
         if self.mode == "test":
 
             for d in data_list:
+                print("[*] Infer image", d)
                 src_img = cv2.imread(d)
                 src_h, src_w, _ = src_img.shape
                 img = cv2.resize(src_img, (self.img_w, self.img_h))
@@ -158,6 +159,7 @@ class Inference(object):
         pull_p, pull_v, scores, heatmaps = [], [], [], []
         
         for d in data_list:
+            print("[*] Infer image", d)
             # tmp saved list for a single file `d`
             # d_p:        (2,) vector point to right
             # d_scores:   (itvl,)
@@ -177,6 +179,7 @@ class Inference(object):
             d_p, d_heatmaps, d_scores = [], [], []
 
             for j in range(itvl):
+                print("tmp: ", j)
                 img = rsz.copy()
                 r = 360/itvl*j
                 img_r = rotate_img(img, r)
@@ -228,7 +231,6 @@ class Inference(object):
         """
         if net_type is None: net_type = self.net_type
         
-        print("show visulization???", show)
         img = cv2.imread(img_path)
         rsz = cv2.resize(img, (self.img_w, self.img_h))
         s_out = list(os.path.split(img_path))
@@ -260,12 +262,12 @@ class Inference(object):
                 # points.append([pred_x, pred_y])
                 vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
-                overlay = cv2.addWeighted(rsz, 0.65, vis, 0.35, 0)
-                cv2.putText(overlay, name+' '+str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                overlay = cv2.addWeighted(rsz, 0.5, vis, 0.5, 0)
+                # cv2.putText(overlay, name+' '+str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
                 # overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
                 overlays.append(overlay) 
             maxid = scores.index(max(scores))
-            cv2.rectangle(overlays[maxid], (0,0),(overlays[maxid].shape[1],overlays[maxid].shape[0]), (0,255,0),5)
+            # cv2.rectangle(overlays[maxid], (0,0),(overlays[maxid].shape[1],overlays[maxid].shape[0]), (0,255,0),5)
             out = cv2.hconcat(overlays)
             
             # ret = img.copy()
@@ -284,8 +286,8 @@ class Inference(object):
                 scores.append(h.max())
                 vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
-                overlay = cv2.addWeighted(rot_rsz, 0.65, vis, 0.35, 0)
-                cv2.putText(overlay, "pull "+str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                overlay = cv2.addWeighted(rot_rsz, 0.5, vis, 0.5, 0)
+                # cv2.putText(overlay, "pull "+str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
                 overlays.append(overlay) 
             maxid = scores.index(max(scores))
             cv2.rectangle(overlays[maxid], (0,0),(overlays[maxid].shape[1],overlays[maxid].shape[0]), (0,255,0),5)
@@ -308,7 +310,7 @@ class Inference(object):
                 vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
                 overlay = cv2.addWeighted(rsz, 0.65, vis, 0.35, 0)
-                cv2.putText(overlay, str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                # cv2.putText(overlay, str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
                 # overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
                 overlays.append(overlay) 
             maxid = scores.index(max(scores))
@@ -330,7 +332,7 @@ class Inference(object):
                 vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
                 overlay = cv2.addWeighted(rot_rsz, 0.65, vis, 0.35, 0)
-                cv2.putText(overlay, str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                # cv2.putText(overlay, str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
                 overlays.append(overlay) 
             maxid = scores.index(max(scores))
             cv2.rectangle(overlays[maxid], (0,0),(overlays[maxid].shape[1],overlays[maxid].shape[0]), (0,255,0),5)
@@ -436,7 +438,7 @@ if __name__ == "__main__":
     
     # folder = "D:\\dataset\\picknet\\test\\depth0.png"
     folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightAugment\\images\\000161.png"
-    folder = "C:\\Users\\xinyi\\Desktop\\_test\\000000.png"
+    folder = "C:\\Users\\xinyi\\Desktop\\_tmp\\012.png"
     # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorVal\\SR"
     # folder = "C:\\Users\\xinyi\\Desktop\\_tmp"
     # folder = "C:\\Users\\xinyi\\Desktop\\val_image"
@@ -448,7 +450,6 @@ if __name__ == "__main__":
     # folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\SC\\35\\depth.png" 
     # folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\U\\122\\depth.png" 
 
-    saved = "C:\\Users\\xinyi\\Desktop\\_tmp"
     # res = inference.infer(data_dir=folder, net_type="pick")
     # res = inference.infer(data_dir=folder, save_dir=saved, net_type="sep_pos")
     # print(res)
@@ -456,13 +457,13 @@ if __name__ == "__main__":
     # folder = "/home/hlab/Desktop/predicting/tmp5.png"
     
     # saved = "/home/hlab/Desktop"
-    output = inference.infer(data_dir=folder, net_type="sep", show=False)
+    output = inference.infer(data_dir=folder, net_type="sep", show=True)
     # print(output)
     # keys = ["pull_p", "pull_v"]
-    for i, d in enumerate(inference.data_list):
-        img = cv2.imread(d)
+    # for i, d in enumerate(inference.data_list):
+    #     img = cv2.imread(d)
         
-        print("--------", d, "pick or sep? ")
+    #     print("--------", d, "pick or sep? ")
         # pick_sep_cls = output[0][i]
         # pick_p = output[1][i]
         # pull_p = output[2][i]
@@ -478,8 +479,8 @@ if __name__ == "__main__":
         # cv2.destroyAllWindows()
         # pull_p = output[2][i]
         # pull_v = output[3][i]
-        for k, out in zip(inference.return_keys,output):
-            print("%14s: " % k, out[i].flatten() if out[i] is not None else "")
+        # for k, out in zip(inference.return_keys,output):
+        #     print("%14s: " % k, out[i].flatten() if out[i] is not None else "")
             # print("%14s: " % k, type(out[i]), out[i])
 
             

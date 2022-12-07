@@ -168,7 +168,7 @@ if __name__ == "__main__":
 
     # ---------------------- PickNet Dataset -------------------
     data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\PickDataNew"
-    inds = random_inds(10, 80000) 
+    inds = random_inds(100, 80000) 
     Np, Nn = 0, 0
     train_dataset = PickDataset(512,512,data_folder)
     print(len(train_dataset))
@@ -191,7 +191,7 @@ if __name__ == "__main__":
         cv2.imshow(label, heatmap)
         cv2.waitKey()
         cv2.destroyAllWindows()
-        if i > 10: break
+        # if i > 100: break
 
     # ---------------------- SepNet-P Dataset -------------------
     # inds = random_inds(10, 1000) 

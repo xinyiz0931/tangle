@@ -3,12 +3,12 @@ root_dir_linux: /home/hlab/Documents
 
 train:
   net_type: pick
-  backbone: resnet34
+  backbone: resnet50
   epochs: 100
   use_cuda: True
   img_height: 512
   img_width: 512
-  loss: bce
+  loss: mse
   batch_size: 2
   learning_rate: 0.001
   momentum: 0.9
@@ -18,18 +18,19 @@ train:
 
   # dataset: SepDataNewAug
   dataset: PickDataNew
-  save_folder: try_pick_no_augdata
+  save_folder: try_pick
 
 infer:
-  net_type: sep
+  net_type: pick_sep
   mode: test
   use_cuda: False
   batch_size: 1
   img_height: 512
   img_width: 512
   pick_ckpt_folder: [ckpt_picknet, model_epoch_8.pth]
+  # pick_ckpt_folder: [try_pick_no_augdata, model_epoch_17.pth]
   # sep_ckpt_folder: [try_only_pull_action_map, model_epoch_20.pth]
-  sep_ckpt_folder: [try_sep_gauss2d_aug, model_epoch_8.pth]
+  sep_ckpt_folder: [try_sep_gauss2d_aug, model_epoch_20.pth]
 
 validate:
   net: sep_pull

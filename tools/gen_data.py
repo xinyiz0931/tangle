@@ -19,9 +19,9 @@ seq = iaa.Sequential([
         shear=(-10,10),
         rotate=(-180,180)
     ),
-    # iaa.Sometimes(0.5, iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.01*255), per_channel=0.1)),
-    # iaa.Sometimes(0.5, iaa.GammaContrast((0.5, 2.0))),
-    # iaa.Sometimes(0.5, iaa.ElasticTransformation(alpha=1, sigma=1))
+    iaa.Sometimes(0.5, iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.01*255), per_channel=0.1)),
+    iaa.Sometimes(0.5, iaa.GammaContrast((0.5, 2.0))),
+    iaa.Sometimes(0.5, iaa.ElasticTransformation(alpha=1, sigma=1))
     ])
 # seq = iaa.Sequential([])
 seq_noise_only = iaa.Sequential([
@@ -311,6 +311,7 @@ def gen_simple_pickdata(source_dir, dest_dir, type="pick", aug_multiplier=1):
     for d in [images_dir, masks_dir]:
         if not os.path.exists(d): os.mkdir(d)
     N = 0
+    N_pick, N_sep = 0,0
     N_exist = len(os.listdir(images_dir))
     if os.path.exists(labels_path):
         labels = np.load(labels_path).tolist()
@@ -345,16 +346,21 @@ def gen_simple_pickdata(source_dir, dest_dir, type="pick", aug_multiplier=1):
                     cv2.imwrite(new_img_path, img_)
                     cv2.imwrite(new_msk_path, msk_)
                     N += 1 
-                    labels.append(0)
+                    N_sep += 1
+                    labels.append(1)
             else:
                 # positive samples: randomly add noise
-                img = seq_noise_only(image=img)
+                msk = cv2.normalize(msk, None, 0, 1, cv2.NORM_MINMAX).astype(np.float32)
+                heatmap = HeatmapsOnImage(msk, shape=img.shape)
+                img, masks_ = seq_noise_only(image=img, heatmaps=heatmap)
+                msk = cv2.normalize(masks_.get_arr(), None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 new_img_path = os.path.join(images_dir, "%06d.png" % (N+N_exist))
                 new_msk_path = os.path.join(masks_dir, "%06d.png" % (N+N_exist))
 
                 cv2.imwrite(new_img_path, img)
                 cv2.imwrite(new_msk_path, msk)
                 N += 1
+                N_pick += 1
                 labels.append(0)
             print("Transfer data: %6d" % N, end='')
             print('\r', end='')
@@ -363,7 +369,8 @@ def gen_simple_pickdata(source_dir, dest_dir, type="pick", aug_multiplier=1):
         for data in os.listdir(source_dir):
             d = os.path.join(source_dir, data)
             img = cv2.imread(os.path.join(d, os.listdir(d)[0]))
-            for msk_path in [x for x in os.listdir(d) if "mask" in x and not "target" in x]:
+            for msk_path in [x for x in os.listdir(d) if "target" in x]:
+            # for msk_path in [x for x in os.listdir(d) if "mask" in x and not "target" in x]:
                 msk = cv2.imread(os.path.join(d, msk_path), 0)
                 
                 msk = cv2.normalize(msk, None, 0, 1, cv2.NORM_MINMAX).astype(np.float32)
@@ -381,8 +388,9 @@ def gen_simple_pickdata(source_dir, dest_dir, type="pick", aug_multiplier=1):
                 
                 print("Transfer data: %6d" % N, end='')
                 print('\r', end='')
-
     np.save(labels_path, labels)
+    print("Transferred total ", N)
+    print("Pick: ", N_pick, "Sep: ", N_sep)
 
 def gen_sepdata_from_pe(source_dir, dest_dir, itvl=16):
     """
@@ -662,26 +670,36 @@ if __name__ == "__main__":
     #     print('----------------------------------------')
     
     # ------------- Simplify pick data: remove json and rename--------------
-    # # from exp
-    # src_dir = "C:\\Users\\xinyi\\Desktop\\exp"
-    # dest_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\PickDataNew"
-    # gen_simple_pickdata(src_dir, dest_dir, type="sep", aug_multiplier=1) 
+    # from exp
+    src_dir = "C:\\Users\\xinyi\\Desktop\\exp"
+    dest_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\PickDataNew"
+    gen_simple_pickdata(src_dir, dest_dir, type="sep", aug_multiplier=1) 
 
-    # # from TangleData
+    # from TangleData
+    # shapes = ['0_SR', '1_U', '2_SC', '3_FIVE', '4_ST', '6_J']
+    # aug_multipliers = [10, 13, 15, 10, 6, 12]
+
     # src_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\TangleData"
     # dest_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\PickDataNew"
+    # for _s, _m in zip(shapes, aug_multipliers):
+    #     _src_dir = os.path.join(src_dir, _s)
+    #     print(_m, _src_dir ,"->", dest_dir)
+    #     gen_simple_pickdata(_src_dir, dest_dir, aug_multiplier=_m)
+    #     print('----------------------------------')
+
+
     # for _s in os.listdir(src_dir):
     #     if "_C" in _s or "_E" in _s or "NEW" in _s or "NEW" in _s:
     #         continue
     #     _src_dir = os.path.join(src_dir, _s)
     #     print('----------------------------------------')
     #     print('|  ', _src_dir, '\n|=>', dest_dir)
-    #     gen_simple_pickdata(_src_dir, dest_dir)
+    #     # gen_simple_pickdata(_src_dir, dest_dir)
     #     print('----------------------------------------')
 
 
     # ------------- generate data for simplified sepnet --------------
-    src_dir = "C:\\Users\\xinyi\\Desktop\\exp"
-    dest_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataNewAug"
-    gen_simple_sepdata(src_dir, dest_dir, aug_multimplier=4) 
+    # src_dir = "C:\\Users\\xinyi\\Desktop\\exp"
+    # dest_dir = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataNewAug"
+    # gen_simple_sepdata(src_dir, dest_dir, aug_multimplier=4) 
     

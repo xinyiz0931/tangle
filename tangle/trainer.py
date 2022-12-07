@@ -47,9 +47,9 @@ class Trainer(object):
 
         if self.net_type == 'pick':
             self.model = PickNet(model_type='unet', out_channels=2)
-            # self.criterion = torch.nn.MSELoss()
+            self.criterion = torch.nn.MSELoss()
             # self.criterion = torch.nn.BCELoss()
-            self.criterion = torch.nn.BCEWithLogitsLoss()
+            # self.criterion = torch.nn.BCEWithLogitsLoss()
             self.optim = torch.optim.SGD(self.model.parameters(), lr=config.learning_rate,
                          momentum=config.momentum, weight_decay=config.weight_decay)
             train_dataset = PickDataset(img_h, img_w, config.data_dir, train_inds)
