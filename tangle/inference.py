@@ -1,5 +1,6 @@
 import os
 import timeit
+import pickle
 import numpy as np
 import torch
 import torch.nn as nn
@@ -98,7 +99,7 @@ class Inference(object):
         if self.mode == "test":
 
             for d in data_list:
-                print("[*] Infer image", d)
+                print("[*] Infer PickNet for", d)
                 src_img = cv2.imread(d)
                 src_h, src_w, _ = src_img.shape
                 img = cv2.resize(src_img, (self.img_w, self.img_h))
@@ -159,7 +160,7 @@ class Inference(object):
         pull_p, pull_v, scores, heatmaps = [], [], [], []
         
         for d in data_list:
-            print("[*] Infer image", d)
+            # print("[*] Infer SepNet for", d)
             # tmp saved list for a single file `d`
             # d_p:        (2,) vector point to right
             # d_scores:   (itvl,)
@@ -179,7 +180,6 @@ class Inference(object):
             d_p, d_heatmaps, d_scores = [], [], []
 
             for j in range(itvl):
-                print("tmp: ", j)
                 img = rsz.copy()
                 r = 360/itvl*j
                 img_r = rotate_img(img, r)
@@ -234,60 +234,57 @@ class Inference(object):
         img = cv2.imread(img_path)
         rsz = cv2.resize(img, (self.img_w, self.img_h))
         s_out = list(os.path.split(img_path))
-        s_ret = list(os.path.split(img_path))
-        # s_out[-1] = "out_" + s_out[-1]
         s_out[-1] = net_type + "net_" + s_out[-1]
-        # s_ret[-1] = "ret_" + s_ret[-1]
         s_out.insert(-1, "pred")
-        # s_ret.insert(-1, "pred")
+
+        s_ret = list(os.path.split(img_path))
+        s_ret[-1] = net_type + "net_score.pickle" 
+        s_ret.insert(-1, "pred")
+        ret = {}
 
         if save_dir == None:
             if not os.path.exists(os.path.join(*s_out[:-1])): 
                 os.mkdir(os.path.join(*s_out[:-1]))
             save_out_path = os.path.join(*s_out)
-            if not os.path.exists(os.path.join(*s_ret[:-1])): 
-                os.mkdir(os.path.join(*s_ret[:-1]))
+            save_ret_path = os.path.join(*s_ret)
             # save_ret_path = os.path.join(*s_ret)
         else: 
             save_out_path = os.path.join(save_dir, s_out[-1])
-            # save_ret_path = os.path.join(save_dir, s_ret[-1])
-
+            save_ret_path = os.path.join(save_dir, s_ret[-1])
         # plot PickNet: preds = (2xHxW)
 
         if net_type == "pick":
             scores, overlays = [], []
             for h,name in zip(preds, ["pick", "sep"]):
                 scores.append(h.max())
-                # pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
+                pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
                 # points.append([pred_x, pred_y])
                 vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
                 overlay = cv2.addWeighted(rsz, 0.5, vis, 0.5, 0)
                 # cv2.putText(overlay, name+' '+str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-                # overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
+                overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
                 overlays.append(overlay) 
             maxid = scores.index(max(scores))
             # cv2.rectangle(overlays[maxid], (0,0),(overlays[maxid].shape[1],overlays[maxid].shape[0]), (0,255,0),5)
             out = cv2.hconcat(overlays)
             
-            # ret = img.copy()
-            # if scores[0] > scores[1]: 
-            #     ret  = cv2.circle(ret, points[0], 7, (0, 255, 0), -1)
-            #     cv2.putText(ret, "pick", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-            # else:
-            #     ret  = cv2.circle(ret, points[1], 7, (0, 255, 0), -1)
-            #     cv2.putText(ret, "sep", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-
+            
         elif net_type == "sep":
             scores, overlays = [], []
             for j, h in enumerate(preds):
+                pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
                 r = 360 / len(preds) * j
                 rot_rsz = rotate_img(rsz, r)
                 scores.append(h.max())
                 vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
+                rot_rsz = adjust_grayscale(rot_rsz)
                 overlay = cv2.addWeighted(rot_rsz, 0.5, vis, 0.5, 0)
-                # cv2.putText(overlay, "pull "+str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                cv2.putText(overlay, "pull "+str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                # overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
+                overlay = cv2.arrowedLine(overlay, (pred_x, pred_y), (pred_x + 50, pred_y), (0,255,0), 2)
+
                 overlays.append(overlay) 
             maxid = scores.index(max(scores))
             cv2.rectangle(overlays[maxid], (0,0),(overlays[maxid].shape[1],overlays[maxid].shape[0]), (0,255,0),5)
@@ -346,8 +343,11 @@ class Inference(object):
             sn_out = cv2.vconcat(multi_overlays)
             
             out = cv2.vconcat([pn_out, cv2.resize(sn_out, None, fx=0.5, fy=0.5)])
+
         print(f"[*] Saved in {save_out_path}")
         cv2.imwrite(save_out_path, out)
+        with open(save_ret_path, 'wb') as f:
+            pickle.dump(scores, f, protocol=pickle.HIGHEST_PROTOCOL)
         if show: 
             cv2.imshow(net_type, out)
             cv2.waitKey()
@@ -381,7 +381,6 @@ class Inference(object):
         if net_type is None: 
             net_type = self.net_type
          
-        print(f"[*] Infer type: {net_type}")
         if net_type == "pick":
             self.return_keys = ["pick_or_sep?", "pick_p"]
             pick_sep_p, pn_scores, pn_heatmaps = self.infer_pick(data_list=data_list)
@@ -395,12 +394,14 @@ class Inference(object):
                 return [succ, len(pn_heatmaps)]
             else:
                 for d, h in zip(data_list, pn_heatmaps):
-                    if save: self.plot(img_path=d, preds=h, net_type=net_type, save_dir=save_dir, show=show)
+                    if save: 
+                        self.plot(img_path=d, preds=h, net_type=net_type, save_dir=save_dir, show=show)
+
                 # return pick_sep_cls, pick_p 
                 return pick_sep_p, pn_scores
         
         elif net_type == "sep":
-            self.return_keys = ["pull_p", "pull_v"]
+            self.return_keys = ["pull_p", "pull_v", "sn_scores"]
             pull_p, pull_v, sn_scores, sn_heatmaps = self.infer_sep(data_list=data_list)
             for d, h in zip(data_list, sn_heatmaps):
                 if save:
@@ -454,10 +455,15 @@ if __name__ == "__main__":
     # res = inference.infer(data_dir=folder, save_dir=saved, net_type="sep_pos")
     # print(res)
     
-    # folder = "/home/hlab/Desktop/predicting/tmp5.png"
+    folder = "/home/hlab/Desktop/predicting/tmp12.png"
+    folder = "/home/hlab/Desktop/_test/000048.png"
+    folder = "/home/hlab/Desktop/exp/20221207120333/depth_drop.png"
+    folder = "/home/hlab/bpbot/data/depth/depth_cropped_dropbin.png"
+    folder = "/home/hlab/Desktop/predicting/000186.png"
+    folder = "/home/hlab/bpbot/data/depth/depth_cropped.png"
     
     # saved = "/home/hlab/Desktop"
-    output = inference.infer(data_dir=folder, net_type="sep", show=True)
+    output = inference.infer(data_dir=folder, net_type="pick", show=True)
     # print(output)
     # keys = ["pull_p", "pull_v"]
     # for i, d in enumerate(inference.data_list):
