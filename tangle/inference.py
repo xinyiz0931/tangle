@@ -263,10 +263,15 @@ class Inference(object):
                 vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
                 overlay = cv2.addWeighted(rsz, 0.5, vis, 0.5, 0)
                 # cv2.putText(overlay, name+' '+str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+<<<<<<< Updated upstream
                 overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
+=======
+                # overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
+                cv2.imwrite(f"alltangle_{name}map.png", overlay)
+>>>>>>> Stashed changes
                 overlays.append(overlay) 
             maxid = scores.index(max(scores))
-            # cv2.rectangle(overlays[maxid], (0,0),(overlays[maxid].shape[1],overlays[maxid].shape[0]), (0,255,0),5)
+            cv2.rectangle(overlays[maxid], (0,0),(overlays[maxid].shape[1],overlays[maxid].shape[0]), (0,255,0),5)
             out = cv2.hconcat(overlays)
             
             
@@ -439,7 +444,9 @@ if __name__ == "__main__":
     
     # folder = "D:\\dataset\\picknet\\test\\depth0.png"
     folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightAugment\\images\\000161.png"
-    folder = "C:\\Users\\xinyi\\Desktop\\_tmp\\012.png"
+    # folder = "C:\\Users\\xinyi\\Desktop\\_tmp\\013.png"
+    folder = "C:\\Users\\xinyi\\Material\\RA-L2022Tangle\\image\\alltangle.png"
+    folder = "C:\\Users\\xinyi\\Material\\RAL2022Tangle\\tangle_exp_for_ral\\PNOnly\\exp_se\\test1\\20221201115527\\depth_drop.png"
     # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorVal\\SR"
     # folder = "C:\\Users\\xinyi\\Desktop\\_tmp"
     # folder = "C:\\Users\\xinyi\\Desktop\\val_image"

@@ -27,10 +27,18 @@ infer:
   batch_size: 1
   img_height: 512
   img_width: 512
+<<<<<<< Updated upstream
   pick_ckpt_folder: [ckpt_picknet, model_epoch_10.pth]
   # pick_ckpt_folder: [try_pick_no_augdata, model_epoch_17.pth]
   # sep_ckpt_folder: [try_only_pull_action_map, model_epoch_20.pth]
   sep_ckpt_folder: [try_sep_gauss2d_aug, model_epoch_25.pth]
+=======
+  pick_ckpt_folder: [ckpt_picknet, model_epoch_7.pth]
+  # pick_ckpt_folder: [try_pick, model_epoch_18.pth]
+  # pick_ckpt_folder: [try_pick_no_augdata, model_epoch_9.pth]
+  # sep_ckpt_folder: [try_only_pull_action_map, model_epoch_20.pth]
+  sep_ckpt_folder: [try_sep_gauss2d_aug, model_epoch_40.pth]
+>>>>>>> Stashed changes
 
 validate:
   net: sep_pull
