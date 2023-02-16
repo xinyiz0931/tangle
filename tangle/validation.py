@@ -5,7 +5,7 @@ import torch
 from torchvision import transforms
 from tangle.utils import *
 from tangle import PickNet, SepNet, SepNetD
-from tangle import PickDataset, SepDataset
+from tangle import PickDataset, PullDataset
 
 class Validation(object):
     def __init__(self, config):
@@ -24,16 +24,16 @@ class Validation(object):
         
         elif self.net == "sep_hold":
             self.model = SepNet(out_channels=2)
-            self.dataset = SepDataset(self.img_w, self.img_h, config.dataset, self.net)
+            self.dataset = PullDataset(self.img_w, self.img_h, config.dataset, self.net)
 
         elif self.net == "sep_pull":
             self.model = SepNet(in_channels=4, out_channels=1)
-            self.dataset = SepDataset(self.img_w, self.img_h, config.dataset, self.net, data_type="val")
+            self.dataset = PullDataset(self.img_w, self.img_h, config.dataset, self.net, data_type="val")
         
         elif self.net == "sep_dir":
             self.model = SepNetD(in_channels=5, backbone="conv")
             # self.model = SepNetD(in_channels=5, backbone="resnet50")
-            self.dataset = SepDataset(self.img_w, self.img_h, config.dataset, self.net)
+            self.dataset = PullDataset(self.img_w, self.img_h, config.dataset, self.net)
 
         self.ckpt_list = glob.glob(os.path.join(config.ckpt_dir, "*.pth"))
         self.ckpt_list.sort(key=os.path.getmtime)

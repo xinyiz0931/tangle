@@ -55,8 +55,8 @@ class Inference(object):
         #         # self.val_dataset = PickDataset(self.img_h, self.img_w, config.dataset_dir, data_inds=inds) 
         #         self.val_dataset = PickDataset(self.img_w, self.img_h, config.dataset_dir) 
         #     elif "sep" in self.net_type:
-        #         # self.val_dataset = SepDataset(self.img_h, self.img_w, config.dataset_dir, config.net_type, data_inds=inds)
-        #         self.val_dataset = SepDataset(self.img_w, self.img_h, config.dataset_dir, config.net_type)
+        #         # self.val_dataset = PullDataset(self.img_h, self.img_w, config.dataset_dir, config.net_type, data_inds=inds)
+        #         self.val_dataset = PullDataset(self.img_w, self.img_h, config.dataset_dir, config.net_type)
         #     self.val_loader = DataLoader(self.val_dataset, batch_size=config.batch_size, shuffle=False)
         
         # elif self.mode == "test":

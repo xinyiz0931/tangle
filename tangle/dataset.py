@@ -94,7 +94,7 @@ class PickDataset(Dataset):
             src_img = cv2.resize(src_img, (self.img_w, self.img_h))
             return self.transform(src_img)
 
-class SepDataset(Dataset):
+class PullDataset(Dataset):
     """
     Output: 
         torch.Size([3, W, H]) - 3 channel image 
@@ -154,10 +154,6 @@ class SepDataset(Dataset):
 
 if __name__ == "__main__":
 
-    from tangle import Config
-    cfg = Config(config_type="train")
-
-    data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorAugment"
     data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEight"
     BLUE = [51,102,255]
     PINK = [244,89,144]
@@ -191,7 +187,7 @@ if __name__ == "__main__":
     #     cv2.destroyAllWindows()
         # if i > 100: break
 
-    # ---------------------- SepNet Dataset -------------------
+    # ---------------------- PullNet Dataset -------------------
     img = cv2.imread("C:\\Users\\xinyi\\Documents\\XYBin_Collected\\example_u\\depth.png")
     from bpbot.utils import rotate_img
     img = rotate_img(img, 225)
@@ -209,7 +205,7 @@ if __name__ == "__main__":
 
     # data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataNew"
     # data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataNewAug"
-    # train_dataset = SepDataset(512,512,data_folder, data_inds=inds)
+    # train_dataset = PullDataset(512,512,data_folder, data_inds=inds)
     # i=0
     # # print(train_dataset[1])
     # for data in train_dataset:

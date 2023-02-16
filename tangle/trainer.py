@@ -11,7 +11,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from tangle.utils import *
 from tangle import PickNet, PullNet
-from tangle import PickDataset, SepDataset
+from tangle import PickDataset, PullDataset
 
 class Trainer(object):
     def __init__(self, config):
@@ -67,8 +67,8 @@ class Trainer(object):
             # self.criterion = torch.nn.BCEWithLogitsLoss()
             # self.optim = torch.optim.SGD(self.model.parameters(), lr=config.learning_rate,
             #              momentum=config.momentum, weight_decay=config.weight_decay)
-            train_dataset = SepDataset(img_w, img_h, config.data_dir,data_inds=train_inds)
-            test_dataset = SepDataset(img_w, img_h, config.data_dir, data_inds=test_inds)
+            train_dataset = PullDataset(img_w, img_h, config.data_dir,data_inds=train_inds)
+            test_dataset = PullDataset(img_w, img_h, config.data_dir, data_inds=test_inds)
 
         else:
             print('No such model type! Select from pick/sep_pos/sep_dir ... ')
