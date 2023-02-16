@@ -3,22 +3,6 @@ Configuration class: config_type = ["train", 'infer']
 Author: xinyi
 Date: 20220517
 Use it to load default config file by `cfg = Config(config_type="train")`
-Otherwise, create a dictionary and use `cfg = Config(config_type="train", config_data=config_data)`
-    config_data = {
-        "root_dir_win": "C:\\Users\\xinyi\\Documents",
-        "root_dir_linux": "/home/hlab/Documents/",
-        "infer": 
-        {
-            "net_type": "pick_sep",
-            "use_cuda": True,
-            "batch_size": 1,
-            "img_height": 512,
-            "img_width": 512,
-            "pick_ckpt_folder": ["try8","model_epoch_10.pth"],
-            "sepp_ckpt_folder": ["try_38","model_epoch_4.pth"],
-            "sepd_ckpt_folder": ["try_new_res","model_epoch_12.pth"]
-        }
-    }
 """
 import os
 import yaml
@@ -55,23 +39,7 @@ class Config(object):
 
         elif self.config_type == "infer":
             self.picknet_ckpt = os.path.join(root_dir, "Checkpoint", *self.pick_ckpt_folder)
-            self.sepnet_ckpt = os.path.join(root_dir, "Checkpoint", *self.sep_ckpt_folder)
-
-        elif self.config_type == "validate":
-            if "pick" in self.net:  
-                self.ckpt_dir = os.path.join(root_dir, "Checkpoint", self.pick_ckpt_folder)
-                self.dataset = os.path.join(root_dir, "Dataset", self.pick_data_folder)
-            elif self.net == "sep_dir":
-                self.ckpt_dir = os.path.join(root_dir, "Checkpoint", self.sepd_ckpt_folder_v)
-                self.dataset = os.path.join(root_dir, "Dataset", self.sep_data_folder)
-            elif self.net == "sep_pull":
-                self.ckpt_dir = os.path.join(root_dir, "Checkpoint", self.sepd_ckpt_folder_s)
-                self.dataset = os.path.join(root_dir, "Dataset", self.sep_data_folder)
-            elif self.net == "sep_hold" or self.net == "sep_pos":
-                self.ckpt_dir = os.path.join(root_dir, "Checkpoint", self.sepp_ckpt_folder)
-                self.dataset = os.path.join(root_dir, "Dataset", self.sep_data_folder)
-            else:
-                print(f"Wrong validation type: {self.net}! ")
+            self.pullnet_ckpt = os.path.join(root_dir, "Checkpoint", *self.pull_ckpt_folder)
 
         else:
             print(f"Wrong config type: {self.config_type} ... ")

@@ -4,7 +4,6 @@ import pickle
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from bpbot.utils import *
 from tangle.utils import *
@@ -27,40 +26,22 @@ class Inference(object):
         self.transform = transforms.Compose([transforms.ToTensor()])
 
         
-        if "pick" in self.net_type:
-            # self.picknet = PickNet(model_type="unet", out_channels=3)
-            self.picknet = PickNet(model_type="unet", out_channels=2)
-            # self.picknet = torch.hub.load("pytorch/vision:v0.10.0", "fcn_resnet50", pretrained=False)
+        if self.net_type == "pick" or self.net_type == "auto":
+            self.picknet = PickNet(out_channels=2)
             if self.use_cuda:
                 self.picknet = self.picknet.cuda()
                 self.picknet.load_state_dict(torch.load(config.picknet_ckpt))
             else:
                 self.picknet.load_state_dict(torch.load(config.picknet_ckpt,map_location=torch.device("cpu")))  
 
-        if "sep" in self.net_type:
-            # ------------------ OLD ---------------------
-            self.sepnet = SepNet(in_channels=3, out_channels=1)
-            # ------------------ OLD ---------------------
+        if self.net_type == "pull" or self.net_type == "auto":
+            self.pullnet = PullNet(in_channels=3, out_channels=1)
             if self.use_cuda: 
-                self.sepnet = self.sepnet.cuda()
-                self.sepnet.load_state_dict(torch.load(config.sepnet_ckpt))
+                self.pullnet = self.pullnet.cuda()
+                self.pullnet.load_state_dict(torch.load(config.pullnet_ckpt))
             else:
-                self.sepnet.load_state_dict(torch.load(config.sepnet_ckpt,map_location=torch.device("cpu")))
-
-        # if validation mode, it"s necessary to load the dataset
-        # if self.mode == "val":
-        #     # inds = random_inds(2, 100)
-        #     # inds = random_inds(10,len(os.listdir(os.path.join(config.dataset_dir, "images"))))
-        #     if "pick" in self.net_type:
-        #         # self.val_dataset = PickDataset(self.img_h, self.img_w, config.dataset_dir, data_inds=inds) 
-        #         self.val_dataset = PickDataset(self.img_w, self.img_h, config.dataset_dir) 
-        #     elif "sep" in self.net_type:
-        #         # self.val_dataset = PullDataset(self.img_h, self.img_w, config.dataset_dir, config.net_type, data_inds=inds)
-        #         self.val_dataset = PullDataset(self.img_w, self.img_h, config.dataset_dir, config.net_type)
-        #     self.val_loader = DataLoader(self.val_dataset, batch_size=config.batch_size, shuffle=False)
+                self.pullnet.load_state_dict(torch.load(config.pullnet_ckpt,map_location=torch.device("cpu")))
         
-        # elif self.mode == "test":
-        #     self.dataset_dir = config.dataset_dir
 
     def get_image_list(self, data_dir):
         """
@@ -124,28 +105,8 @@ class Inference(object):
 
         return np.array(pick_sep_p, dtype=int), np.array(scores), np.array(heatmaps)
 
-        # elif self.mode == "val":
-        #     for sample_batched in self.val_loader:
-        #         sample_batched = [Variable(d.cuda() if self.use_cuda else d) for d in sample_batched]
-        #         img, mask_gt = sample_batched
-        #         heatmaps = self.picknet(img)
-        #         mask_gt = mask_gt[0]
-        #         # get ground truth label
-        #         if mask_gt[0].max() >=  mask_gt[1].max(): lbl_gt = 0
-        #         else: lbl_gt = 1
-
-        #         for j in range(heatmaps.shape[0]):
-        #             if mask_gt[j][0].max() >=  mask_gt[j][1].max(): lbl_gt = 0
-        #             else: lbl_gt = 1
-
-        #             h = heatmaps[j].detach().cpu().numpy()
-        #             if h[0].max() >= h[1].max(): lbl_pred = 0
-        #             else: lbl_pred = 1
-        #             outputs.append([lbl_gt, lbl_pred])
-
-
-    def infer_sep(self, data_list, itvl=8):
-        """Use SepNet to infer N samples
+    def infer_pull(self, data_list, itvl=8):
+        """Use PullNet to infer N samples
 
         Args:
             data_list (list): list of file path. 
@@ -160,7 +121,7 @@ class Inference(object):
         pull_p, pull_v, scores, heatmaps = [], [], [], []
         
         for d in data_list:
-            # print("[*] Infer SepNet for", d)
+            # print("[*] Infer PullNet for", d)
             # tmp saved list for a single file `d`
             # d_p:        (2,) vector point to right
             # d_scores:   (itvl,)
@@ -185,10 +146,8 @@ class Inference(object):
                 img_r = rotate_img(img, r)
                 inp_r_t = torch.unsqueeze(self.transform(img_r), 0)
                 inp_r_t = inp_r_t.cuda() if self.use_cuda else inp_r_t
-                # ------------------------- OLD -----------------------
-                pullmap_r_t = self.sepnet.forward(inp_r_t)[0][0]
-                # ------------------------- NEW -----------------------
-                # pullmap_r_t = self.sepnet(inp_r_t)['out'][0][0]
+                pullmap_r_t = self.pullnet.forward(inp_r_t)[0][0]
+                # pullmap_r_t = self.pullnet(inp_r_t)['out'][0][0]
                 pullmap_r = pullmap_r_t.detach().cpu().numpy()
 
                 y, x = np.unravel_index(pullmap_r.argmax(), pullmap_r.shape)
@@ -223,9 +182,9 @@ class Inference(object):
             img_path (str): path to a single image
             preds (array or tuple): 
                 "pick"     (2,H,W)
-                "sep"      (itvl,H,W)
-                "pick_sep" ((2,H,W),(itvl,H,W))
-            net_type (str, optional): "pick"/"sep"/"pick_sep". Defaults to None.
+                "pull"     (itvl,H,W)
+                "auto"     ((2,H,W),(itvl,H,W))
+            net_type (str, optional): "pick"/"pull"/"auto". Defaults to None.
             save_dir (str, optional): save directory. Defaults to None (path/to/img/preds).
             show (bool, optional): show the plotted heatmaps. Defaults to False. 
         """
@@ -262,9 +221,9 @@ class Inference(object):
                 vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
                 overlay = cv2.addWeighted(rsz, 0.5, vis, 0.5, 0)
-                # cv2.putText(overlay, name+' '+str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                cv2.putText(overlay, name+' '+str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
                 overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
-                # overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
+                overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
                 cv2.imwrite(f"alltangle_{name}map.png", overlay)
                 overlays.append(overlay) 
             maxid = scores.index(max(scores))
@@ -272,7 +231,7 @@ class Inference(object):
             out = cv2.hconcat(overlays)
             
             
-        elif net_type == "sep":
+        elif net_type == "pull":
             scores, overlays = [], []
             for j, h in enumerate(preds):
                 pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
@@ -284,7 +243,7 @@ class Inference(object):
                 rot_rsz = adjust_grayscale(rot_rsz)
                 overlay = cv2.addWeighted(rot_rsz, 0.5, vis, 0.5, 0)
                 cv2.putText(overlay, "pull "+str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-                # overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
+                overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
                 overlay = cv2.arrowedLine(overlay, (pred_x, pred_y), (pred_x + 50, pred_y), (0,255,0), 2)
 
                 overlays.append(overlay) 
@@ -298,31 +257,22 @@ class Inference(object):
                 multi_overlays.append(cv2.hconcat(overlays[c:c+n_col]))
             out = cv2.vconcat(multi_overlays)
         
-        elif net_type == "pick_sep":
+        elif net_type == "auto":
             pn_preds, sn_preds = preds
             # picknet first
             scores, overlays = [], []
             for h in pn_preds:
                 scores.append(h.max())
-                # pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
-                # points.append([pred_x, pred_y])
+                pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
                 vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
                 overlay = cv2.addWeighted(rsz, 0.65, vis, 0.35, 0)
-                # cv2.putText(overlay, str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-                # overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
+                cv2.putText(overlay, str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
                 overlays.append(overlay) 
             maxid = scores.index(max(scores))
             cv2.rectangle(overlays[maxid], (0,0),(overlays[maxid].shape[1],overlays[maxid].shape[0]), (0,255,0),5)
             pn_out = cv2.hconcat(overlays)
-            # pn_ret = img.copy()
-            # if scores[0] > scores[1]: 
-            #     pn_ret  = cv2.circle(pn_ret, points[0], 7, (0, 255, 0), -1)
-            #     cv2.putText(pn_ret, "pick", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-            # else:
-            #     pn_ret  = cv2.circle(pn_ret, points[1], 7, (0, 255, 0), -1)
-            #     cv2.putText(pn_ret, "sep", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-            # sepnet then
             scores, overlays = [], []
             for j, h in enumerate(sn_preds):
                 r = 360 / len(sn_preds) * j
@@ -331,7 +281,7 @@ class Inference(object):
                 vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
                 vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
                 overlay = cv2.addWeighted(rot_rsz, 0.65, vis, 0.35, 0)
-                # cv2.putText(overlay, str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                cv2.putText(overlay, str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
                 overlays.append(overlay) 
             maxid = scores.index(max(scores))
             cv2.rectangle(overlays[maxid], (0,0),(overlays[maxid].shape[1],overlays[maxid].shape[0]), (0,255,0),5)
@@ -356,7 +306,7 @@ class Inference(object):
             cv2.destroyAllWindows()
 
     def infer(self, data_dir, net_type=None, save_dir=None, save=True, show=False):
-        """Infer using PickNet or SepNet
+        """Infer using PickNet or PullNet
 
         Args:
             data_dir (str): _description_
@@ -368,10 +318,10 @@ class Inference(object):
         Returns:
             "pick"    : pick_sep_p (list) : N x (2,2)
                         pn_scores  (list) : N x (2,)  
-            "sep"     : pull_p     (list) : N x (2,)
+            "pull"     : pull_p     (list) : N x (2,)
                         pull_v     (list) : N x (2,)
                         sn_scores     (list) : N x (itvl,)
-            "pick_sep": all above 
+            "auto": all above 
         """ 
         
         if data_dir != None: 
@@ -402,23 +352,23 @@ class Inference(object):
                 # return pick_sep_cls, pick_p 
                 return pick_sep_p, pn_scores
         
-        elif net_type == "sep":
+        elif net_type == "pull":
             self.return_keys = ["pull_p", "pull_v", "sn_scores"]
-            pull_p, pull_v, sn_scores, sn_heatmaps = self.infer_sep(data_list=data_list)
+            pull_p, pull_v, sn_scores, sn_heatmaps = self.infer_pull(data_list=data_list)
             for d, h in zip(data_list, sn_heatmaps):
                 if save:
                     self.plot(img_path=d, preds=h, net_type=net_type, save_dir=save_dir, show=show)
             return pull_p, pull_v
 
-        elif net_type == "pick_sep":
+        elif net_type == "auto":
             self.return_keys = ["pick_sep_cls", "pick_p", "pull_p", "pull_v"]
             pick_sep_p, pn_scores, pn_heatmaps = self.infer_pick(data_list=data_list)
             pick_sep_cls = np.argmax(pn_scores, axis=1)
             pick_p = pick_sep_p[np.arange(len(pick_sep_cls)),pick_sep_cls,:]
             sep_data_list = ["" if list(pick_sep_cls)[i]==0 else s for i,s in enumerate(data_list)]
      
-            pull_p, pull_v, sn_scores, sn_heatmaps = self.infer_sep(data_list=sep_data_list)
-            print("[*] SepNet scores: ", sn_scores)
+            pull_p, pull_v, sn_scores, sn_heatmaps = self.infer_pull(data_list=sep_data_list)
+            print("[*] PullNet scores: ", sn_scores)
 
             for i in range(len(data_list)):
                 if sep_data_list[i] is None or sep_data_list[i] == "": 
@@ -441,31 +391,5 @@ if __name__ == "__main__":
     
     folder = "C:\\Users\\xinyi\\Material\\RAL2022Tangle\\tangle_exp_for_ral\\PNOnly\\exp_se\\test1\\20221201115527\\depth_drop.png"
     
-    # saved = "/home/hlab/Desktop"
     output = inference.infer(data_dir=folder, net_type="pick", show=True)
-    # print(output)
-    # keys = ["pull_p", "pull_v"]
-    # for i, d in enumerate(inference.data_list):
-    #     img = cv2.imread(d)
-        
-    #     print("--------", d, "pick or sep? ")
-        # pick_sep_cls = output[0][i]
-        # pick_p = output[1][i]
-        # pull_p = output[2][i]
-        # pull_v = output[3][i]
-        # if pull_p is None: 
-        #     cv2.circle(img, pick_p, 5, (0,255,0), -1)
-        #     cv2.imshow("Action: Pick", img)
-        # else: 
-        #     cv2.circle(img, pull_p, 5, (0,255,0), -1)
-        #     cv2.arrowedLine(img, pull_p, (pull_p+pull_v * 50).astype(int), (0,255,0), 2)
-        #     cv2.imshow("Action: Sep", img)
-        # cv2.waitKey()
-        # cv2.destroyAllWindows()
-        # pull_p = output[2][i]
-        # pull_v = output[3][i]
-        # for k, out in zip(inference.return_keys,output):
-        #     print("%14s: " % k, out[i].flatten() if out[i] is not None else "")
-            # print("%14s: " % k, type(out[i]), out[i])
-
             
