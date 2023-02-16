@@ -1,13 +1,11 @@
 """
 Dataset class
     `PickDataset` for PickNet
-    `SepDataset` for SepPositionNet, SepDirectionNet
+    `PullDataset` for PullNet
 Author: xinyi
 Date: 20220517
 """
 import os
-import json
-import tqdm
 import numpy as np
 import cv2
 import torch

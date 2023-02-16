@@ -8,7 +8,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from bpbot.utils import *
 from tangle.utils import *
-from tangle import PickNet, SepNet
+from tangle import PickNet, PullNet
 
 class Inference(object):
 
@@ -263,12 +263,9 @@ class Inference(object):
                 vis = cv2.applyColorMap(vis, cv2.COLORMAP_JET)
                 overlay = cv2.addWeighted(rsz, 0.5, vis, 0.5, 0)
                 # cv2.putText(overlay, name+' '+str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-<<<<<<< Updated upstream
                 overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
-=======
                 # overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
                 cv2.imwrite(f"alltangle_{name}map.png", overlay)
->>>>>>> Stashed changes
                 overlays.append(overlay) 
             maxid = scores.index(max(scores))
             cv2.rectangle(overlays[maxid], (0,0),(overlays[maxid].shape[1],overlays[maxid].shape[0]), (0,255,0),5)
@@ -442,32 +439,7 @@ if __name__ == "__main__":
     cfg.display()
     inference = Inference(config=cfg)
     
-    # folder = "D:\\dataset\\picknet\\test\\depth0.png"
-    folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightAugment\\images\\000161.png"
-    # folder = "C:\\Users\\xinyi\\Desktop\\_tmp\\013.png"
-    folder = "C:\\Users\\xinyi\\Material\\RA-L2022Tangle\\image\\alltangle.png"
     folder = "C:\\Users\\xinyi\\Material\\RAL2022Tangle\\tangle_exp_for_ral\\PNOnly\\exp_se\\test1\\20221201115527\\depth_drop.png"
-    # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorVal\\SR"
-    # folder = "C:\\Users\\xinyi\\Desktop\\_tmp"
-    # folder = "C:\\Users\\xinyi\\Desktop\\val_image"
-    # print(inference.get_image_list(folder))
-    # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEight\\images\\000004.png" 
-    # folder = "C:\\Users\\xinyi\\Documents\\Dataset\\SepDataAllPullVectorEightAugment\\images\\000055.png" 
-    # folder = "C:\\Users\\xinyi\\Code\\bpbot\\data\\test\\depth28.png" 
-    # folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\SC\\97\\depth.png" 
-    # folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\SC\\35\\depth.png" 
-    # folder = "C:\\Users\\xinyi\\Documents\\XYBin_Collected\\tangle_scenes\\U\\122\\depth.png" 
-
-    # res = inference.infer(data_dir=folder, net_type="pick")
-    # res = inference.infer(data_dir=folder, save_dir=saved, net_type="sep_pos")
-    # print(res)
-    
-    folder = "/home/hlab/Desktop/predicting/tmp12.png"
-    folder = "/home/hlab/Desktop/_test/000048.png"
-    folder = "/home/hlab/Desktop/exp/20221207120333/depth_drop.png"
-    folder = "/home/hlab/bpbot/data/depth/depth_cropped_dropbin.png"
-    folder = "/home/hlab/Desktop/predicting/000186.png"
-    folder = "/home/hlab/bpbot/data/depth/depth_cropped.png"
     
     # saved = "/home/hlab/Desktop"
     output = inference.infer(data_dir=folder, net_type="pick", show=True)

@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tangle.utils import *
-from tangle import PickNet, SepNet
+from tangle import PickNet, PullNet
 from tangle import PickDataset, SepDataset
 
 class Trainer(object):
@@ -58,7 +58,7 @@ class Trainer(object):
         elif self.net_type == "sep":
 
             # ------------------- OLD ---------------------
-            self.model = SepNet(in_channels=3, out_channels=1)
+            self.model = PullNet(in_channels=3, out_channels=1)
             self.criterion = torch.nn.BCELoss()
             self.optim = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate, 
                                           weight_decay=config.weight_decay)
