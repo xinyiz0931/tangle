@@ -12,7 +12,7 @@ Industrial bin picking for tangled-prone objects requires the robot to either pi
 
 This repository contains codes for training and inference using PickNet and PullNet. 
 
-## 1. Prerequisites
+## Prerequisites
 
 We're using a bin picking toolbox `bpbot: bin-picking-robot` containing some necessary functions such as grasp point detection. Please download and install this package. We've tested our code using Python 3.6, 3.7, 3.8. 
 
@@ -29,14 +29,45 @@ Then, install tensorflow for this repository.
 git clone https://github.com/xinyiz0931/tangle.git
 ```
 
-We use PyTorch 1.8.1 
+We use PyTorch 1.8.1 and CUDA 11.1. 
 
-## 2. Inference
-
-## 3. Training
+## Training
 
 Revise the training parameters in `cfg/config.yaml` and use
 
 ```
-python tools/main.py
+python tool/train.py
+```
+
+PickNet's dataset: 
+```
+    src_dir 
+    ├── images
+    │   ├── 000000.png
+    │   ├── 000001.png
+    │   └── ...
+    ├── masks
+    │   ├── 000000.png
+    │   ├── 000001.png
+    │   └── ...
+    └── labels.npy - shape=(N,), 0: picking, 1: separating
+```
+PullNet's dataset: 
+```
+    src_dir 
+    ├── _images (before rotation)
+    │   ├── 000000.png
+    │   └── ...
+    ├── _masks (before rotation)
+    │   ├── 000000.png
+    │   └── ...
+    ├── _positions.npy (before rotation) - shape=(N,2)
+    ├── _directions.npy (before rotation) - shape=(N,2)
+    ├── images (after rotation, in use)
+    │   ├── 000000.png
+    │   └── ...
+    ├── masks (after rotation, in use)
+    │   ├── 000000.png
+    │   └── ...
+    └── positions.npy (after rotation, in use) - shape=(N,2)
 ```

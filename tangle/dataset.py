@@ -108,16 +108,15 @@ class PullDataset(Dataset):
         if data_inds == None:
             data_inds = list(range(data_num))
 
-        if data_type == "train":
-            for loaded, i in enumerate(data_inds):
-                self.images.append(os.path.join(images_folder, "%06d.png" % i))
-                self.masks.append(os.path.join(masks_folder, "%06d.png" % i))
-                self.positions.append(positions[i])
+        for loaded, i in enumerate(data_inds):
+            self.images.append(os.path.join(images_folder, "%06d.png" % i))
+            self.masks.append(os.path.join(masks_folder, "%06d.png" % i))
+            self.positions.append(positions[i])
 
-                print('Loading data: %d / %d' % (loaded, len(data_inds)), end='')
-                print('\r', end='') 
+            print('Loading data: %d / %d' % (loaded, len(data_inds)), end='')
+            print('\r', end='') 
 
-            print(f"Finish loading {len(data_inds)} samples! ")
+        print(f"Finish loading {len(data_inds)} samples! ")
 
     def __len__(self):
         return len(self.images)
@@ -143,13 +142,12 @@ if __name__ == "__main__":
 
     pn_data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\picknet_dataset"
     inds = random_inds(10, 80000) 
-    train_dataset = PickDataset(512,512,pn_data_folder)
+    train_dataset = PickDataset(512,512,pn_data_folder, data_inds=inds)
     for i in range(len(train_dataset)):
         img, msk = train_dataset[i]
         depth = visualize_tensor(img)
         pick_m = visualize_tensor(msk[0])
         sep_m = visualize_tensor(msk[1])
-        # grasp = visualize_tensor(msk[2],cmap=True)
 
         if train_dataset.labels[i] == 1: 
             label = "Label: separate"
@@ -179,4 +177,3 @@ if __name__ == "__main__":
         cv2.waitKey()
         cv2.destroyAllWindows()
 
-        if i > 10: break

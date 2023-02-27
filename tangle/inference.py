@@ -214,7 +214,7 @@ class Inference(object):
 
         if net_type == "pick":
             scores, overlays = [], []
-            for h,name in zip(preds, ["pick", "sep"]):
+            for h,name in zip(preds, ["pickmap", "sepmap"]):
                 scores.append(h.max())
                 pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
                 # points.append([pred_x, pred_y])
@@ -224,7 +224,6 @@ class Inference(object):
                 cv2.putText(overlay, name+' '+str(np.round(h.max(), 3)), (20, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
                 overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
                 overlay = cv2.circle(overlay, (pred_x, pred_y), 7, (0, 255, 0), -1)
-                cv2.imwrite(f"alltangle_{name}map.png", overlay)
                 overlays.append(overlay) 
             maxid = scores.index(max(scores))
             cv2.rectangle(overlays[maxid], (0,0),(overlays[maxid].shape[1],overlays[maxid].shape[0]), (0,255,0),5)
