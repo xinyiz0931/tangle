@@ -3,7 +3,7 @@
 [Xinyi Zhang](http://xinyiz0931.github.io), Yukiyasu Domae, [Weiwei Wan](https://wanweiwei07.github.io/) and [Kensuke Harada](https://www.roboticmanipulation.org/members2/kensuke-harada/)      
 Osaka University
 
-[arXiv](https://arxiv.org) / [Video](https://youtu.be/O0y-Scp4wqY)  
+[Webpage](http://xinyiz0931.github.io/tangle) / [arXiv](https://arxiv.org/abs/2302.08152) / [Video](https://youtu.be/O0y-Scp4wqY)  
 
 ## Overview  
 
