@@ -2,7 +2,7 @@ from tangle import Config, Trainer, Inference
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('mode', choices=['train','validate','infer'], help='functions')
+parser.add_argument('mode', choices=['train','infer'], help='functions')
 
 def main():
 

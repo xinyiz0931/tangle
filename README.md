@@ -12,5 +12,31 @@ Industrial bin picking for tangled-prone objects requires the robot to either pi
 
 This repository contains codes for training and inference using PickNet and PullNet. 
 
-1. Prerequisites
+## 1. Prerequisites
 
+We're using a bin picking toolbox `bpbot: bin-picking-robot` containing some necessary functions such as grasp point detection. Please download and install this package. We've tested our code using Python 3.6, 3.7, 3.8. 
+
+```
+git clone https://github.com/xinyiz0931/bin-picking-robot.git bpbot
+cd bpbot
+pip insatll -r requirements.txt
+pip install -e .
+```
+
+Then, install tensorflow for this repository. 
+
+```
+git clone https://github.com/xinyiz0931/tangle.git
+```
+
+We use PyTorch 1.8.1 
+
+## 2. Inference
+
+## 3. Training
+
+Revise the training parameters in `cfg/config.yaml` and use
+
+```
+python tools/main.py
+```
