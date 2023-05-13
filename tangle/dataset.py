@@ -140,39 +140,54 @@ if __name__ == "__main__":
 
     # ---------------------- PickNet Dataset -------------------
 
-    pn_data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\picknet_dataset"
-    inds = random_inds(10, 80000) 
-    train_dataset = PickDataset(512,512,pn_data_folder, data_inds=inds)
-    for i in range(len(train_dataset)):
-        img, msk = train_dataset[i]
-        depth = visualize_tensor(img)
-        pick_m = visualize_tensor(msk[0])
-        sep_m = visualize_tensor(msk[1])
+    # pn_data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\picknet_dataset"
+    # inds = random_inds(10, 80000) 
+    # inds = [104,105,106,107]
+    # train_dataset = PickDataset(512,512,pn_data_folder, data_inds=inds)
+    # for i in range(len(train_dataset)):
+    #     img, msk = train_dataset[i]
+    #     depth = visualize_tensor(img)
+    #     pick_m = visualize_tensor(msk[0])
+    #     sep_m = visualize_tensor(msk[1])
 
-        if train_dataset.labels[i] == 1: 
-            label = "Label: separate"
-            sep_cnt, _ = cv2.findContours(sep_m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-            heatmap=cv2.drawContours(depth,sep_cnt,-1, [255,102,51] ,2) # blue
-        else:
-            label = "Label: pick"
-            pick_cnt, _ = cv2.findContours(pick_m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-            heatmap=cv2.drawContours(depth,pick_cnt,-1, [144,89,244],2) # pink
+    #     if train_dataset.labels[i] == 1: 
+    #         label = "Label: separate"
+    #         label = "sep"
+    #         sep_cnt, _ = cv2.findContours(sep_m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    #         heatmap=cv2.drawContours(depth,sep_cnt,-1, [255,102,51] ,2) # blue
+    #         # cv2.imwrite(f"C:\\Users\\xinyi\\Material\\RAL2022Tangle\\image\\{i}_depth_{label}.png", depth) 
+    #         # cv2.imwrite(f"C:\\Users\\xinyi\\Material\\RAL2022Tangle\\image\\{i}_mask_{label}.png", sep_m) 
+            
+    #     else:
+    #         label = "Label: pick"
+    #         label = "pick"
+    #         # cv2.imwrite(f"C:\\Users\\xinyi\\Material\\RAL2022Tangle\\image\\{i}_depth_{label}.png", depth) 
+    #         # cv2.imwrite(f"C:\\Users\\xinyi\\Material\\RAL2022Tangle\\image\\{i}_mask_{label}.png", pick_m) 
+    #         pick_cnt, _ = cv2.findContours(pick_m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    #         heatmap=cv2.drawContours(depth,pick_cnt,-1, [144,89,244],2) # pink
 
-        cv2.imshow(label, heatmap)
-        cv2.waitKey()
-        cv2.destroyAllWindows()
+    #     cv2.imshow(label, heatmap)
+    #     cv2.waitKey()
+    #     cv2.destroyAllWindows()
 
     # ---------------------- PullNet Dataset -------------------
 
     sn_data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\pullnet_dataset"
-    inds = random_inds(10, 20000) 
-    train_dataset = PullDataset(512,512,sn_data_folder, data_inds=inds)
+    sn_data_folder = "C:\\Users\\xinyi\\Documents\\Dataset\\pullnet_dataset_added_ral"
+    inds = random_inds(10, 500) 
+    # inds = [3036,3037,3038,3039]
+
+    train_dataset = PullDataset(512,512,sn_data_folder)
     for i in range(len(train_dataset)):
         inp, out = train_dataset[i]
-        print(inp.shape, out.shape)
+        
+        print(inp.shape, out.shape, train_dataset.positions[i])
         inp = visualize_tensor(inp)
         out = visualize_tensor(out, cmap=True)
         overlay = cv2.addWeighted(inp, 0.5, out, 0.5, 1)
+        # cv2.imwrite(f"C:\\Users\\xinyi\\Material\\RAL2022Tangle\\image\\data_pull_{i}.png", overlay) 
+        img = cv2.imread(train_dataset.images[i])
+        # overlay = cv2.circle(img, train_dataset.positions[i], 8, (0,255,0), -1)
         cv2.imshow("w", overlay)
         cv2.waitKey()
         cv2.destroyAllWindows()

@@ -20,15 +20,16 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
 
-    if args.path is not None:
-        log_path = args.path
-        log_dir = os.path.split(log_path)[:-1][0]
-    else:
-        from tangle.config import Config
-        config = Config(config_type="train")
-        log_dir = config.save_dir
-        log_path = os.path.join(log_dir, 'log.csv')
-
+    # if args.path is not None:
+    #     log_path = args.path
+    #     log_dir = os.path.split(log_path)[:-1][0]
+    # else:
+    #     from tangle.config import Config
+    #     config = Config(config_type="train")
+    #     log_dir = config.save_dir
+    #     log_path = os.path.join(log_dir, 'log.csv')
+    log_dir = "C:\\Users\\xinyi\\Documents\\Checkpoint\\ckpt_picknet"
+    log_path = "C:\\Users\\xinyi\\Documents\\Checkpoint\\ckpt_picknet\\log.csv"
     # create plot design
     colors = [[ 78.0/255.0,121.0/255.0,167.0/255.0], # 0_blue
               [255.0/255.0, 87.0/255.0, 89.0/255.0], # 1_red
@@ -71,6 +72,7 @@ if __name__ == "__main__":
         frame.set_facecolor('white')
         
         plt.tight_layout()
+        print("Saved plotted result")
         plt.savefig(os.path.join(log_dir, 'loss.png'))
         plt.show()
 

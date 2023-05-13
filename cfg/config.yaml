@@ -2,8 +2,7 @@ root_dir_win: C:\\Users\\xinyi\\Documents
 root_dir_linux: /home/hlab/Documents
 
 train:
-  net_type: pick
-  backbone: resnet50
+  net_type: pull
   epochs: 100
   use_cuda: True
   img_height: 512
@@ -14,10 +13,10 @@ train:
   momentum: 0.9
   weight_decay: 0.0001
   num_workers: 0
-  test_ratio: 0.15
+  test_ratio: 0.10
 
-  dataset: picknet_dataset
-  save_folder: try_pick
+  dataset: pullnet_dataset_added_ral
+  save_folder: try_pull_added_ral
 
 infer:
   net_type: auto

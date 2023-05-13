@@ -21,7 +21,6 @@ class Trainer(object):
         self.net_type = config.net_type
         self.epochs = config.epochs
         self.use_cuda = config.use_cuda
-        self.backbone = config.backbone 
         self.out_dir = config.save_dir
         self.timestamp_start = datetime.datetime.now()
 
@@ -55,7 +54,7 @@ class Trainer(object):
             train_dataset = PickDataset(img_h, img_w, config.data_dir, train_inds)
             test_dataset = PickDataset(img_h, img_w, config.data_dir, test_inds)
 
-        elif self.net_type == "sep":
+        elif self.net_type == "pull":
 
             # ------------------- OLD ---------------------
             self.model = PullNet(in_channels=3, out_channels=1)
@@ -98,7 +97,7 @@ class Trainer(object):
             mask_pred = self.model(img.float())
             loss = self.criterion(mask_pred, mask_gt.float())
 
-        elif self.net_type == 'sep':
+        elif self.net_type == 'pull':
             # -------------------------- OLD ---------------------------
             # img, out_gt = sample_batched
             img, out_gt = sample_batched[0].to(self.device), sample_batched[1].to(self.device)
