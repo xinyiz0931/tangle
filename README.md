@@ -52,3 +52,10 @@ We provide some sample images in `samples/` for inference.
 ```
 python tools/infer.py
 ```
+
+
+## Server/Client Mode
+
+If you want to continuously infer during bin picking, it is possible to load the checkpoint only for one time using a server. 
+
+Please refer to our another repository: [bpbot](https://github.com/xinyiz0931/bin-picking-robot), it is under `bin-picking-robot/bpbot/module_picksep`([link](https://github.com/xinyiz0931/bin-picking-robot/tree/master/bpbot/module_picksep)). 
