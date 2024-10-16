@@ -14,10 +14,13 @@ This repository contains codes for training and inference using PickNet and Pull
 
 ## Prerequisites
 
-We've tested our code using 3.8, PyTorch 1.8.1 and CUDA 11.1, you can find the installation command from [here](https://pytorch.org/get-started/previous-versions/). 
+We've tested our code using 3.8, PyTorch 1.8.1 and CUDA 11.1
 
 ```
 git clone https://github.com/xinyiz0931/tangle.git
+```
+```
+cd tangle
 pip install -r requirements.txt
 pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
 pip install -e .

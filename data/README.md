@@ -1,6 +1,6 @@
 # Dataset
 
-Download the datasets, unzip and put them under `tangle/data/`, make sure the directory looks like this: 
+Download two datasets (`picknet_dataset.zip` and `pullnet_dataset.zip`) from [here](https://drive.google.com/drive/folders/1i_tRZcTMqNASh4RaOxcy0d9z5iqd5eup?usp=sharing), unzip and put them under `tangle/data/`, make sure the directory looks like this: 
 
 ```
 tangle
