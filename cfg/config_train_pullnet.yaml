@@ -1,0 +1,16 @@
+train:
+  net_type: pull 
+  epochs: 100
+  use_cuda: True
+  img_height: 512
+  img_width: 512
+  loss: mse
+  batch_size: 2
+  learning_rate: 0.001
+  momentum: 0.9
+  weight_decay: 0.0001
+  num_workers: 0
+  test_ratio: 0.10
+
+  dataset: pullnet_dataset
+  save_folder: pullnet_ckpt_try_0 

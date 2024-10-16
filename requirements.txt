@@ -1,0 +1,8 @@
+# pyyaml
+matplotlib
+numpy
+opencv-contrib-python
+opencv-python
+pandas 
+scikit-image
+seaborn

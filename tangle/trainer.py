@@ -45,7 +45,7 @@ class Trainer(object):
         else: os.mkdir(self.out_dir)
 
         if self.net_type == 'pick':
-            self.model = PickNet(model_type='unet', out_channels=2)
+            self.model = PickNet(out_channels=2)
             self.criterion = torch.nn.MSELoss()
             # self.criterion = torch.nn.BCELoss()
             # self.criterion = torch.nn.BCEWithLogitsLoss()

@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torchvision import transforms
-from bpbot.utils import *
+# from bpbot.utils import * # remove dependencies
 from tangle.utils import *
 from tangle import PickNet, PullNet
 
@@ -388,7 +388,7 @@ if __name__ == "__main__":
     cfg.display()
     inference = Inference(config=cfg)
     
-    folder = "C:\\Users\\xinyi\\Material\\RAL2022Tangle\\tangle_exp_for_ral\\PNOnly\\exp_se\\test1\\20221201115527\\depth_drop.png"
+    folder = os.path.join(cfg.root_dir, "sample/000000.png")
     
     output = inference.infer(data_dir=folder, net_type="pick", show=True)
             

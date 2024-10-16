@@ -14,60 +14,38 @@ This repository contains codes for training and inference using PickNet and Pull
 
 ## Prerequisites
 
-We're using a bin picking toolbox `bpbot: bin-picking-robot` containing some necessary functions such as grasp point detection. Please download and install this package. We've tested our code using Python 3.6, 3.7, 3.8. 
-
-```
-git clone https://github.com/xinyiz0931/bin-picking-robot.git bpbot
-cd bpbot
-pip insatll -r requirements.txt
-pip install -e .
-```
-
-Then, install tensorflow for this repository. 
+We've tested our code using 3.8, PyTorch 1.8.1 and CUDA 11.1, you can find the installation command from [here](https://pytorch.org/get-started/previous-versions/). 
 
 ```
 git clone https://github.com/xinyiz0931/tangle.git
+pip install -r requirements.txt
+pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
+pip install -e .
 ```
-
-We use PyTorch 1.8.1 and CUDA 11.1. 
 
 ## Training
 
-Revise the training parameters in `cfg/config.yaml` and use
+1. Download the dataset following `data/README.md`. 
+
+2. (Optional) Revise the training parameters referring `cfg/config_train_*.yaml`
+
+3. Run the following commands
 
 ```
 python tool/train.py
 ```
 
-PickNet's dataset: 
+
+## Testing
+
+We provide some sample images in `samples/` for inference. 
+
+1. Download the dataset following `checkpoints/README.md`. 
+
+2. (Optional) Revise the training parameters referring `cfg/config_infer.yaml`. Current setting can automatically determine which action should be applied for depth images.  
+
+3. Run the following commands
+
 ```
-    src_dir 
-    ├── images
-    │   ├── 000000.png
-    │   ├── 000001.png
-    │   └── ...
-    ├── masks
-    │   ├── 000000.png
-    │   ├── 000001.png
-    │   └── ...
-    └── labels.npy - shape=(N,), 0: picking, 1: separating
-```
-PullNet's dataset: 
-```
-    src_dir 
-    ├── _images (before rotation)
-    │   ├── 000000.png
-    │   └── ...
-    ├── _masks (before rotation)
-    │   ├── 000000.png
-    │   └── ...
-    ├── _positions.npy (before rotation) - shape=(N,2)
-    ├── _directions.npy (before rotation) - shape=(N,2)
-    ├── images (after rotation, in use)
-    │   ├── 000000.png
-    │   └── ...
-    ├── masks (after rotation, in use)
-    │   ├── 000000.png
-    │   └── ...
-    └── positions.npy (after rotation, in use) - shape=(N,2)
+python tool/infer.py
 ```

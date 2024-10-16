@@ -1,17 +1,16 @@
 
-import os
-import json
-import glob
 import math
 import random
-import shutil
 import cv2
 import math
 import numpy as np
-import matplotlib.pyplot as plt
-import sys
 import torch.nn as nn
 import torch.nn.functional as F
+
+from pathlib import Path
+
+def get_root_path() -> Path:
+    return Path(__file__).parent
 
 class CrossEntropyLoss2d(nn.Module):
 
@@ -231,6 +230,64 @@ def cross_entropy2d(input, target, weight=None, size_average=True):
         loss /= mask.data.sum()
     return loss
 
+def rotate_img(img, angle, center=None, scale=1.0, cropped=True):
+    """
+    angle: degree (countclockwise)
+    """
+    (h, w) = img.shape[:2]
+
+    if center is None:
+        center = (w/2, h/2)
+
+    M = cv2.getRotationMatrix2D(center, angle, scale)
+
+    if cropped is True:
+        rotated = cv2.warpAffine(img, M, (w, h))
+        return rotated
+
+    else:
+        cosM = np.abs(M[0][0])
+        sinM = np.abs(M[0][1])
+
+        new_h = int((h * sinM) + (w * cosM))
+        new_w = int((h * cosM) + (w * sinM))
+
+        M[0][2] += (new_w/2) - center[0]
+        M[1][2] += (new_h/2) - center[1]
+
+        # Now, we will perform actual image rotation
+        rotated = cv2.warpAffine(img, M, (new_w, new_h))
+        return cv2.resize(rotated, (h, w))
+
+def rotate_pixel(loc, angle, w, h, center=None, scale=1.0, cropped=True):
+    x, y, = loc
+
+    if center is None:
+        center = (w/2, h/2)
+    M = cv2.getRotationMatrix2D(center, angle, scale)
+
+    if cropped == True:
+        rot_loc = np.dot(M, [x, y, 1])
+        return rot_loc.astype(int)
+    else:
+        cosM = np.abs(M[0][0])
+        sinM = np.abs(M[0][1])
+
+        new_h = int((h * sinM) + (w * cosM))
+        new_w = int((h * cosM) + (w * sinM))
+
+        M[0][2] += (new_w/2) - center[0]
+        M[1][2] += (new_h/2) - center[1]
+
+        rot_loc = np.dot(M, [x, y, 1])
+        
+        return rot_loc*(h/new_h).astype(int)
+
+def adjust_grayscale(img, max_b=255):
+
+    # adjust depth maps
+    img_adjusted = np.array(img * (max_b/np.max(img)), dtype=np.uint8)
+    return img_adjusted
 # def vector2direction(drag_v):
 #     """
 #     input: drag_v - 2d normalized vector
@@ -243,12 +300,24 @@ def cross_entropy2d(input, target, weight=None, size_average=True):
 #     else: rot_degree = -degree_x
 #     return rot_degree
 
+def calc_2vectors_angle(v1, v2):
+    """Calculate the angle between v1 and v2
+       Returns: angles in degree
+       (import from bpbot)
+    """
+    v1 = np.array(v1)
+    v2 = np.array(v2)
+    unit_v1 = v1 / np.linalg.norm(v1)
+    unit_v2 = v2 / np.linalg.norm(v2)
+    dot_product = np.dot(unit_v1, unit_v2)
+    return np.round(np.rad2deg(np.arccos(dot_product)),3)
+
 def vector2angle(v):
     """
     input: drag_v - 2d normalized vector
     output: direction (degree) of image counterclockwise-rotation which makes v equals [1,0]
     """
-    from bpbot.utils import calc_2vectors_angle
+    # from bpbot.utils import calc_2vectors_angle
     degree_x = calc_2vectors_angle(v, [1,0])
     degree_y = calc_2vectors_angle(v, [0,1])
     if degree_y <= 90: rot_degree = degree_x
@@ -258,8 +327,22 @@ def vector2angle(v):
     # else: rot_degree = -degree_x
     return rot_degree
 
+def rotate_point(loc, angle, center=None, scale=1.0):
+    """
+    Copy from bpbot
+    """
+    rad = np.radians(angle)
+    c, s = np.cos(rad), np.sin(rad)
+    M = np.array(((c, -s), (s, c)))
+
+    # M = cv2.getRotationMatrix2D(center, angle, scale)
+    x, y = loc
+    rot_loc = np.dot(M, [x, y])
+
+    return rot_loc
+
 def angle2vector(r, point_to='right'):
-    from bpbot.utils import rotate_point
+    # from bpbot.utils import rotate_point
     if point_to == 'right':
         v = rotate_point([1,0], r)
     elif point_to == 'left':
@@ -299,25 +382,6 @@ def draw_vector(src, p, v, arrow_len=None, arrow_thickness=2, color=(0,255,0)):
         return cv2.cvtColor(drawn, cv2.COLOR_RGB2GRAY)
     return drawn
 
-# def draw_vector(img, start_p, v, arrow_len=None, arrow_thickness=2, color=(0,255,255)):
-#     """
-#     drag_v: 2d normalizaed vector
-#     color: (r,g,b)
-#     """
-#     h, w, _ = img.shape
-#     if arrow_len == None: arrow_len = int(h/10)
-
-#     start_p = [int(start_p[0]), int(start_p[1])]
-#     stop_p = [int(start_p[0]+v[0]*arrow_len), int(start_p[1]+v[1]*arrow_len)]
-#     color_bgr = (color[2], color[1], color[0]) # rgb --> bgr
-#     # find drawable region
-#     if stop_p[0] > w: stop_p[0] = int(start_p[0]+v[0]*(w-start_p[0]-5))
-#     if stop_p[1] > h: stop_p[1] = int(start_p[1]+v[1]*(h-start_p[1]-5))
-#     if stop_p[0] < 0: stop_p[0] = int(start_p[0]+v[0]*(start_p[0]+5))
-#     if stop_p[1] < 0: stop_p[1] = int(start_p[1]+v[1]*(start_p[1]+5))
-#     drawn = cv2.arrowedLine(img, start_p,stop_p, color_bgr, arrow_thickness)
-#     return drawn
-
 def draw_vectors_bundle(img, start_p, scores=None, scores_thre=0.4, itvl=16):
     if scores is None: 
         scores = list(range(itvl))
@@ -352,161 +416,5 @@ def sample_directions(itvl=16):
     for r in range(itvl):
         directions.append(angle2vector(r*360/itvl))
     return directions
-# def transfer_data(src_dir, dest_dir, option, success):
-#     """
-#     condition: option="drag"/"pick", success=True/False
-#     """
-#     print(f"Start transfer {option} data with only success == {success}")
-#     num = 0
-#     if not os.path.exists(dest_dir): os.mkdir(dest_dir)
-#     for work in os.listdir(src_dir):
-#         work_dir = os.path.join(src_dir, work)
-        
-#         # for data in os.listdir(work_dir):
-#         for data in (os.listdir(work_dir))[::-1]:
-#             d = os.path.join(work_dir, data)
-#             f = open(os.path.join(d, "info.json"), "r")
-#             j = json.loads(f.read())
-            
-#             # transfer drag data with all
-#             if option == "drag" and "drag" in j:
-#                 if not os.path.exists(os.path.join(dest_dir, data)): 
-#                     shutil.copytree(d, os.path.join(dest_dir, data))
-#                     num += 1
-#             # transfer drag data with only success
-#             elif option == "drag" and "drag" in j and j["success"]:
-#                 if not os.path.exists(os.path.join(dest_dir, data)): 
-#                     shutil.copytree(d, os.path.join(dest_dir, data))
-#                     num += 1
 
-#                 num += 1
-#             # transfer pick data with all
-#             elif option == "pick" and not "drag" in j:
-#                 if not os.path.exists(os.path.join(dest_dir, data)): 
-#                     shutil.copytree(d, os.path.join(dest_dir, data))
-#                     num += 1
 
-#                 num += 1
-#             # transfer pick data with only success
-#             elif option == "pick" and not "drag" in j and j["success"]:
-#                 if not os.path.exists(os.path.join(dest_dir, data)): 
-#                     shutil.copytree(d, os.path.join(dest_dir, data))
-#                     num += 1
-
-#                 num += 1
-            
-#             # print 
-#             if num % 100 == 0 and num != 0:
-#                 print(f"trasferred {(num)} data ..")
-
-# def reform_pick_data(src_folder):
-#     """
-#     0. rename: 20200101051100 --> 000001
-#     1. update json file
-#         ["id"]
-#     2. visualization
-#         vis.pnt
-#         delete grasp.png if exists
-#     """
-#     from bpbot.grasping import Gripper
-#     gripper = Gripper(finger_w=12, finger_h=30, open_w=40, gripper_size=500)
-
-#     num = 0
-#     for data in os.listdir(src_folder):
-#         d = os.path.join(src_folder, data)
-#         new_d = os.path.join(src_folder, "%06d"%num)
-#         f = open(os.path.join(d, "info.json"), "r+")
-#         j = json.loads(f.read())
-#         img = cv2.imread(os.path.join(d, "depth.png"))
-#         if not 'drag' in j:
-#             # 1. update json file
-#             f.seek(0)
-#             json.dump(j,f, indent=4)
-#             f.truncate()
-#             # 2. visualization
-#             grasp_p = [j["pick"]["point"][0], j["pick"]["point"][1]]
-#             grasps = [[None, grasp_p[0], grasp_p[1],None,j["pick"]["angle"]*math.pi/180]]
-#             drawn = gripper.draw_grasp(grasps, img.copy())
-#             cv2.imwrite(os.path.join(d, "vis.png"), drawn)
-            
-#             # 0. rename
-#             if os.path.exists(os.path.join(d, "grasp.png")):
-#                 os.remove(os.path.join(d, "grasp.png"))
-#             os.rename(d, new_d)
-#             num += 1
-
-# def reform_drag_data(src_folder):
-#     """
-#     0. rename: 20200101051100 ==> 000001
-#     1. update json file: 
-#         ["id"]
-#         ["pick"]["angle_rot"]
-#         ["pick"]["point_rot"]
-#         ["drag"]["vector2d"]
-#         ["drag"]["angle"]
-#     2. rotate image
-#         rot.png, rot_mask.png, rot_mask_f.png
-#     3. visualization
-#         vis.png, rot_vis.png
-#         delete grasp.png if exists
-#     """
-#     from bpbot.grasping import Gripper
-#     gripper = Gripper(finger_w=12, finger_h=30, open_w=40, gripper_size=500)
-#     num = 0
-#     for data in os.listdir(src_folder):
-#         # mkdir dest
-#         d = os.path.join(src_folder, data)
-#         new_d = os.path.join(src_folder, "%06d"%num)
-#         f = open(os.path.join(d, "info.json"), "r+")
-#         j = json.loads(f.read())
-#         img = cv2.imread(os.path.join(d, "depth.png"))
-#         msk = cv2.imread(os.path.join(d, "mask_target.png"))
-#         msk_f = cv2.imread(os.path.join(d, "mask_others.png"))
-#         if 'drag' in j and j["success"]:
-#             sim_v = j["drag"]["vector"] # 3d
-#             drag_v = [-round(sim_v[2],3), round(sim_v[0],3)] # 2d
-#             drag_v_norm = np.array(drag_v) / np.linalg.norm(np.array(drag_v)) # 2d norm
-            
-#             grasp_p = [j["pick"]["point"][0], j["pick"]["point"][1]]
-#             # start rotating
-#             #degree_x = calc_2vectors_angle(drag_v, [1,0]) 
-#             #degree_y = calc_2vectors_angle(drag_v, [0,1])
-#             #if degree_y <= 90: rot_degree = degree_x
-#             #else: rot_degree = -degree_x
-#             rot_degree = vector2direction(drag_v_norm)
-#             grasp_p_rot = rotate_pixel(img.shape[0],img.shape[1], grasp_p, rot_degree, cropped=False)
-            
-#             # 0. rename
-#             # 1. update json file
-#             j["pick"]["angle_rot"] = (rot_degree+j["pick"]["angle"])%360
-#             j["pick"]["point_rot"] = [grasp_p_rot[0], grasp_p_rot[1]]
-#             j["drag"]["vector2d"] =[drag_v_norm[0],drag_v_norm[1]] 
-#             j["drag"]["angle"]=rot_degree
-
-#             f.seek(0)
-#             json.dump(j,f, indent=4)
-#             f.truncate()
-#             # 2. save the rotated image
-#             rot = rotate_img(img, rot_degree, cropped=False)
-#             cv2.imwrite(os.path.join(d, "rot.png"), rot)
-#             rot_msk = rotate_img(msk, rot_degree, cropped=False)
-#             cv2.imwrite(os.path.join(d, "rot_msk.png"), rot_msk)
-#             rot_msk_f = rotate_img(msk_f, rot_degree, cropped=False)
-#             cv2.imwrite(os.path.join(d, "rot_msk_f.png"), rot_msk_f)
-#             # 3. draw and save the vis result
-#             grasps = [[None, grasp_p[0], grasp_p[1],None,j["pick"]["angle"]*math.pi/180]]
-#             drawn = gripper.draw_grasp(grasps, img.copy())
-#             drawn = draw_drag_vector(drawn, grasp_p, drag_v_norm, 200)
-#             grasps_rot = [[None, grasp_p_rot[0], grasp_p_rot[1], None, j["pick"]["angle_rot"]*math.pi/180]]
-
-#             drawn_rot = gripper.draw_grasp(grasps_rot, rot.copy())
-#             drawn_rot = draw_drag_vector(drawn_rot, grasp_p_rot, [1,0], 200)
-
-#             cv2.imwrite(os.path.join(d, "vis.png"), drawn)
-#             cv2.imwrite(os.path.join(d, "rot_vis.png"), drawn_rot)
-            
-#             # 0. rename
-#             if os.path.exists(os.path.join(d, "grasp.png")):
-#                 os.remove(os.path.join(d, "grasp.png"))
-#             os.rename(d, new_d)
-#             num += 1

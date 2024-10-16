@@ -6,27 +6,36 @@ Use it to load default config file by `cfg = Config(config_type="train")`
 """
 import os
 import yaml
-import platform
+from pathlib import Path
+# import platform
 
 class Config(object):
-    def __init__(self, config_type, config_data=None):
+    def __init__(self, config_type, config_file=None, config_data=None):
         
         self.config_type = config_type
+        self.root_dir = Path(__file__).parent.parent
 
-        if config_data is None:
+        if config_data is None and config_file is None:
             # get a fixed path to `config.yaml`
-            dir_path = os.path.dirname(os.path.realpath(__file__))
-            config_path = os.path.realpath(
-                os.path.join(dir_path, "../cfg/config.yaml"))
+            # config_path = os.path.realpath(
+            #     os.path.join(self.root_dir, "cfg/config.yaml"))
+            config_path = os.path.join(self.root_dir, "cfg", "config.yaml")
+            data = self.load(config_path)
+        
+        elif config_file is not None and config_data is None:
+            # get a path to config_file
+            config_path = os.path.join(self.root_dir, "cfg", config_file)
             data = self.load(config_path)
 
         else:
             data = config_data
-        if platform.system() == "Linux":
-            root_dir = data["root_dir_linux"]
-        elif platform.system() == "Windows":
-            root_dir = data["root_dir_win"]
-        self.root_dir = root_dir
+
+        print(data)
+        # ignore platform
+        # if platform.system() == "Linux":
+        #     root_dir = data["root_dir_linux"]
+        # elif platform.system() == "Windows":
+        #     root_dir = data["root_dir_win"]
 
         try:
             self.config = data[self.config_type]
@@ -34,12 +43,12 @@ class Config(object):
             raise AttributeError
 
         if self.config_type == "train":
-            self.save_dir = os.path.join(root_dir, "Checkpoint", self.save_folder)
-            self.data_dir = os.path.join(root_dir, "Dataset", self.dataset)
+            self.save_dir = os.path.join(self.root_dir, "checkpoints", self.save_folder)
+            self.data_dir = os.path.join(self.root_dir, "data", self.dataset)
 
         elif self.config_type == "infer":
-            self.picknet_ckpt = os.path.join(root_dir, "Checkpoint", *self.pick_ckpt_folder)
-            self.pullnet_ckpt = os.path.join(root_dir, "Checkpoint", *self.pull_ckpt_folder)
+            self.picknet_ckpt = os.path.join(self.root_dir, "checkpoints", *self.pick_ckpt_folder)
+            self.pullnet_ckpt = os.path.join(self.root_dir, "checkpoints", *self.pull_ckpt_folder)
 
         else:
             print(f"Wrong config type: {self.config_type} ... ")

@@ -1,5 +1,5 @@
 train:
-  net_type: pick # or pick
+  net_type: pick 
   epochs: 100
   use_cuda: True
   img_height: 512
@@ -14,13 +14,3 @@ train:
 
   dataset: picknet_dataset
   save_folder: picknet_ckpt_try_0 
-
-infer:
-  net_type: auto # pick, pull, auto
-  mode: test
-  use_cuda: True
-  batch_size: 1
-  img_height: 512
-  img_width: 512
-  pick_ckpt_folder: [picknet_ckpt, model_epoch_10.pth]
-  pull_ckpt_folder: [pullnet_ckpt, model_epoch_21.pth]
