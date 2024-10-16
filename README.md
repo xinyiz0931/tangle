@@ -35,7 +35,7 @@ pip install -e .
 3. Run the following commands
 
 ```
-python tool/train.py
+python tools/train.py
 ```
 
 
@@ -50,5 +50,5 @@ We provide some sample images in `samples/` for inference.
 3. Run the following commands
 
 ```
-python tool/infer.py
+python tools/infer.py
 ```
