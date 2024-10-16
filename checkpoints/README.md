@@ -11,8 +11,8 @@ tangle
 ├── cfg
 ├── checkpoints
 │   ├── picknet_ckpt (16GB)
-|   │   └── model_epoch_10.ckpt
+|   │   └── picknet_test_ckpt.ckpt
 │   └── pullnet_ckpt (1.4GB)
-|   │   └── model_epoch_21.ckpt 
+|   │   └── pullnet_test_ckpt.ckpt 
 ├── ...
 └── tools

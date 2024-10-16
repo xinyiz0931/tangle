@@ -22,5 +22,5 @@ infer:
   batch_size: 1
   img_height: 512
   img_width: 512
-  pick_ckpt_folder: [picknet_ckpt, model_epoch_10.pth]
-  pull_ckpt_folder: [pullnet_ckpt, model_epoch_21.pth]
+  pick_ckpt_folder: [picknet_ckpt, picknet_test_ckpt.pth]
+  pull_ckpt_folder: [pullnet_ckpt, pullnet_test_ckpt.pth]
